@@ -224,10 +224,10 @@ after_css_marker = "not css"
 #[section, $md:
     ## Authoring a Moth Template file
 
-    Write markdown and nested Moth templates directly in the `.bd` file:
+    Write markdown and nested Moth templates directly in the `.mtf` file:
 
     [codeblock, $code("moth"):
-        # docs/intro.bd
+        # docs/intro.mtf
 
         # Getting started
 

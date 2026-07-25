@@ -354,7 +354,7 @@
       "patterns": [
         {
           "name": "meta.template.moth meta.template.code.mothlang.moth",
-          "begin": "(?<!\\\\)\\[(?=[^\\]\\n]*\\$code\\s*\\(\\s*\\\"(?:bst|moth)\\\"\\s*\\))",
+          "begin": "(?<!\\\\)\\[(?=[^\\]\\n]*\\$code\\s*\\(\\s*\\\"(?:mtf|moth)\\\"\\s*\\))",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.template.begin.moth"

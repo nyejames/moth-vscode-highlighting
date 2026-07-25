@@ -4,7 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const rootDir = path.resolve(__dirname, "..");
-const grammarPath = path.join(rootDir, "syntaxes", "bst.tmLanguage.json");
+const grammarPath = path.join(rootDir, "syntaxes", "moth.tmLanguage.json");
 const packagePath = path.join(rootDir, "package.json");
 const fixturePath = path.join(__dirname, "fixtures", "highlighting-samples.moth");
 
@@ -299,12 +299,12 @@ test("embedded-code-shell delegates to source.shell", () => {
   assert.ok(langPattern.patterns.some((p) => p.include === "source.shell"));
 });
 
-test("code-moth fragments highlight imports and @html paths inside $code('bst')", () => {
+test("code-moth fragments highlight imports and @html paths inside $code('moth')", () => {
   const includes = grammar.repository["code-moth-fragment"].patterns
     .filter((p) => p.include)
     .map((p) => p.include);
-  assert.ok(includes.includes("#path-literals"), "expected @path highlighting in embedded bst code");
-  assert.ok(includes.includes("#invalid-at-sign"), "expected invalid @ fallback in embedded bst code");
+  assert.ok(includes.includes("#path-literals"), "expected @path highlighting in embedded moth code");
+  assert.ok(includes.includes("#invalid-at-sign"), "expected invalid @ fallback in embedded moth code");
 });
 
 test("embedded Moth code bracket blocks keep fragment highlighting active", () => {
@@ -368,17 +368,17 @@ test("root patterns include new code blocks in correct order", () => {
   const pyIdx = rootIncludes.indexOf("#template-code-py");
   const rsIdx = rootIncludes.indexOf("#template-code-rs");
   const shellIdx = rootIncludes.indexOf("#template-code-shell");
-  const bstIdx = rootIncludes.indexOf("#template-code-moth");
+  const mothIdx = rootIncludes.indexOf("#template-code-moth");
 
   assert.ok(pyIdx < rsIdx, "#template-code-rs should come after #template-code-py");
   assert.ok(rsIdx < shellIdx, "#template-code-shell should come after #template-code-rs");
-  assert.ok(shellIdx < bstIdx, "#template-code-shell should come before #template-code-moth");
+  assert.ok(shellIdx < mothIdx, "#template-code-shell should come before #template-code-moth");
 });
 
 // ── PACKAGE.JSON EMBEDDED LANGUAGES ─────────────────────────────────
 
 test("package.json includes embedded language mappings", () => {
-  const grammarContribution = pkg.contributes.grammars.find((g) => g.language === "bst");
+  const grammarContribution = pkg.contributes.grammars.find((g) => g.language === "moth");
   const embedded = grammarContribution.embeddedLanguages || {};
 
   assert.equal(embedded["meta.embedded.block.markdown.moth"], "markdown");
@@ -387,7 +387,7 @@ test("package.json includes embedded language mappings", () => {
   assert.equal(embedded["meta.embedded.block.code.js.moth"], "javascript");
   assert.equal(embedded["meta.embedded.block.code.ts.moth"], "typescript");
   assert.equal(embedded["meta.embedded.block.code.py.moth"], "python");
-  assert.equal(embedded["meta.embedded.block.code.mothlang.moth"], "bst");
+  assert.equal(embedded["meta.embedded.block.code.mothlang.moth"], "moth");
   assert.equal(embedded["meta.embedded.block.code.generic.moth"], "plaintext");
   assert.equal(embedded["meta.embedded.block.code.rs.moth"], "rust");
   assert.equal(embedded["meta.embedded.block.code.shell.moth"], "shellscript");
@@ -479,7 +479,7 @@ test("fixture contains expected scenarios for manual token inspection", () => {
     "[$children([: Prefix]):",
     "[if show:",
     "[list, if show:",
-    '$code("bst")', '$code("js")', '$code("ts")', '$code("py")',
+    '$code("moth")', '$code("js")', '$code("ts")', '$code("py")',
     '$code("rs")', '$code("rust")', '$code("sh")', '$code("shell")', '$code("bash")',
     "[$css:", "[$html:",
     "clip-path: circle(55%);",

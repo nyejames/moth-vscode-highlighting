@@ -5,14 +5,14 @@ const test = require("node:test");
 
 const rootDir = path.resolve(__dirname, "..");
 const packagePath = path.join(rootDir, "package.json");
-const importGrammarPath = path.join(rootDir, "syntaxes", "bst-import-groups.tmLanguage.json");
-const bdGrammarPath = path.join(rootDir, "syntaxes", "bd.tmLanguage.json");
-const commentGrammarPath = path.join(rootDir, "syntaxes", "bst-comment-directives.tmLanguage.json");
-const bdFixturePath = path.join(__dirname, "fixtures", "highlighting-samples.mtf");
+const importGrammarPath = path.join(rootDir, "syntaxes", "moth-import-groups.tmLanguage.json");
+const mothGrammarPath = path.join(rootDir, "syntaxes", "moth.tmLanguage.json");
+const commentGrammarPath = path.join(rootDir, "syntaxes", "moth-comment-directives.tmLanguage.json");
+const mothFixturePath = path.join(__dirname, "fixtures", "highlighting-samples.mtf");
 
 const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 const importGrammar = JSON.parse(fs.readFileSync(importGrammarPath, "utf8"));
-const bdGrammar = JSON.parse(fs.readFileSync(bdGrammarPath, "utf8"));
+const mothGrammar = JSON.parse(fs.readFileSync(mothGrammarPath, "utf8"));
 const commentGrammar = JSON.parse(fs.readFileSync(commentGrammarPath, "utf8"));
 
 function includesFor(repoKey, grammar = importGrammar) {
@@ -23,16 +23,16 @@ function includesFor(repoKey, grammar = importGrammar) {
 }
 
 test("package registers Moth Template files with a dedicated grammar", () => {
-  const language = pkg.contributes.languages.find((entry) => entry.id === "bd");
-  assert.ok(language, "expected a bd language contribution");
+  const language = pkg.contributes.languages.find((entry) => entry.id === "mtf");
+  assert.ok(language, "expected a mtf language contribution");
   assert.ok(language.extensions.includes(".mtf"), "expected .mtf extension support");
 
-  const grammar = pkg.contributes.grammars.find((entry) => entry.language === "bd");
-  assert.ok(grammar, "expected a bd grammar contribution");
+  const grammar = pkg.contributes.grammars.find((entry) => entry.language === "mtf");
+  assert.ok(grammar, "expected a mtf grammar contribution");
   assert.equal(grammar.scopeName, "source.mtf");
-  assert.equal(grammar.path, "./syntaxes/bd.tmLanguage.json");
+  assert.equal(grammar.path, "./syntaxes/mtf.tmLanguage.json");
   assert.equal(grammar.embeddedLanguages["meta.embedded.block.markdown.moth"], "markdown");
-  assert.equal(grammar.embeddedLanguages["meta.embedded.block.code.mothlang.moth"], "bst");
+  assert.equal(grammar.embeddedLanguages["meta.embedded.block.code.mothlang.moth"], "moth");
 });
 
 test("package injects richer import group highlighting into Moth", () => {
@@ -42,7 +42,7 @@ test("package injects richer import group highlighting into Moth", () => {
 
   assert.ok(injected, "expected import group injection grammar");
   assert.deepEqual(injected.injectTo, ["source.moth"]);
-  assert.equal(injected.path, "./syntaxes/bst-import-groups.tmLanguage.json");
+  assert.equal(injected.path, "./syntaxes/moth-import-groups.tmLanguage.json");
 });
 
 test("import group grammar supports aliases, nested groups, and child paths", () => {
@@ -81,7 +81,7 @@ test("import group grammar supports aliases, nested groups, and child paths", ()
 });
 
 test("Moth Template grammar starts in markdown-template-body context", () => {
-  const bodyPatterns = bdGrammar.repository["mtf-markdown-body"].patterns;
+  const bodyPatterns = mothGrammar.repository["mtf-markdown-body"].patterns;
   const includes = bodyPatterns.map((pattern) => pattern.include);
 
   assert.ok(includes.includes("source.moth#embedded-markdown"));
@@ -96,18 +96,18 @@ test("Moth Template grammar starts in markdown-template-body context", () => {
 });
 
 test("Moth Template defaults nested templates to Markdown unless another directive overrides it", () => {
-  const markdownPattern = bdGrammar.repository["mtf-template-markdown"].patterns[0];
+  const markdownPattern = mothGrammar.repository["mtf-template-markdown"].patterns[0];
   const beginRe = new RegExp(markdownPattern.begin);
 
   assert.ok(beginRe.test("[p:"), "templates without directives should use Markdown");
   assert.ok(beginRe.test("[p,\n:"), "multiline directive-free heads should use Markdown");
   assert.ok(beginRe.test("[$md:"), "$md should keep recursive Markdown highlighting");
 
-  for (const directive of ["$raw", "$fresh", "$html", '$code("bst")', "$css", "$escape_html"]) {
+  for (const directive of ["$raw", "$fresh", "$html", '$code("moth")', "$css", "$escape_html"]) {
     assert.ok(!beginRe.test(`[p, ${directive}:`), `${directive} should use its explicit formatter`);
   }
 
-  const explicitPattern = bdGrammar.repository["mtf-template-explicit-generic"].patterns[0];
+  const explicitPattern = mothGrammar.repository["mtf-template-explicit-generic"].patterns[0];
   const explicitRe = new RegExp(explicitPattern.begin);
   assert.ok(explicitRe.test("[p, $raw:"));
   assert.ok(explicitRe.test("[p,\n$raw:"));
@@ -115,15 +115,15 @@ test("Moth Template defaults nested templates to Markdown unless another directi
   assert.ok(explicitRe.test("[p, $escape_html:"));
   assert.ok(explicitRe.test("[p, $children:"));
   assert.ok(!explicitRe.test("[p, $md:"));
-  assert.ok(!explicitRe.test('[p, $code("bst"):'));
+  assert.ok(!explicitRe.test('[p, $code("moth"):'));
 
-  const bodyIncludes = includesFor("mtf-template-body-markdown", bdGrammar);
+  const bodyIncludes = includesFor("mtf-template-body-markdown", mothGrammar);
   assert.ok(bodyIncludes.includes("#mtf-template-markdown"));
   assert.ok(bodyIncludes.includes("#mtf-template-explicit-generic"));
   assert.ok(bodyIncludes.includes("source.moth#template-generic"));
   assert.ok(bodyIncludes.includes("source.moth#embedded-markdown"));
 
-  const genericBodyIncludes = includesFor("mtf-template-body-generic", bdGrammar);
+  const genericBodyIncludes = includesFor("mtf-template-body-generic", mothGrammar);
   assert.ok(genericBodyIncludes.includes("#mtf-template-markdown"));
   assert.ok(genericBodyIncludes.includes("#mtf-template-explicit-generic"));
 });
@@ -135,7 +135,7 @@ test("package injects template comment directive highlighting", () => {
 
   assert.ok(injected, "expected comment directive injection grammar");
   assert.deepEqual(injected.injectTo, ["source.moth", "source.mtf"]);
-  assert.equal(injected.path, "./syntaxes/bst-comment-directives.tmLanguage.json");
+  assert.equal(injected.path, "./syntaxes/moth-comment-directives.tmLanguage.json");
 });
 
 test("$todo and $note use distinct template scopes but comment-like body scopes", () => {
@@ -162,8 +162,8 @@ test("$doc uses the markdown-template body stack", () => {
 });
 
 test("Moth Template fixture contains direct markdown body and nested template directives", () => {
-  assert.ok(fs.existsSync(bdFixturePath), "expected Moth Template fixture to exist");
-  const fixture = fs.readFileSync(bdFixturePath, "utf8");
+  assert.ok(fs.existsSync(mothFixturePath), "expected Moth Template fixture to exist");
+  const fixture = fs.readFileSync(mothFixturePath, "utf8");
 
   for (const snippet of [
     "# Moth Template title",
@@ -174,7 +174,7 @@ test("Moth Template fixture contains direct markdown body and nested template di
     "[$doc:",
     "[$todo:",
     "[$note:",
-    "[codeblock, $code(\"bst\"):"
+    "[codeblock, $code(\"moth\"):"
   ]) {
     assert.ok(fixture.includes(snippet), `expected fixture to include '${snippet}'`);
   }
