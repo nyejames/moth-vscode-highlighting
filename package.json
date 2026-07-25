@@ -2,7 +2,7 @@
   "name": "moth-highligher",
   "displayName": "Moth",
   "description": "Syntax highlighting for Moth",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "files": [
     "package.json",
     "syntaxes/moth.tmLanguage.json",
@@ -10,9 +10,10 @@
     "syntaxes/moth-comment-directives.tmLanguage.json",
     "syntaxes/mtf.tmLanguage.json",
     "language-configuration.json",
+    "mtf-language-configuration.json",
+    "icons/moth-logo.png",
     "icons/moth.png",
-    "icons/moth.png",
-    "icons/moth-template.png",
+    "icons/moth-template-logo.png",
     "LICENSE"
   ],
   "publisher": "Nye",
@@ -40,23 +41,27 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./icons/moth.png",
-          "dark": "./icons/moth.png"
+          "light": "./icons/moth-logo.png",
+          "dark": "./icons/moth-logo.png"
         }
       },
       {
-        "id": "mothtemplatefile",
+        "id": "mtf",
         "aliases": [
           "mothtemplate",
+          "moth template file",
+          "moth template",
+          "Moth Template",
+          "Moth Template File",
           "mtf"
         ],
         "extensions": [
           ".mtf"
         ],
-        "configuration": "./language-configuration.json",
+        "configuration": "./mtf-language-configuration.json",
         "icon": {
-          "light": "./icons/moth-template.png",
-          "dark": "./icons/moth-template.png"
+          "light": "./icons/moth-template-logo.png",
+          "dark": "./icons/moth-template-logo.png"
         }
       }
     ],

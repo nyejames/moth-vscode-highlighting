@@ -1,5 +1,5 @@
 {
-  "version": "0.2.2",
+  "version": "0.2.8",
   "name": "Moth Import Group Highlighting",
   "scopeName": "source.moth.import-groups",
   "injectionSelector": "L:source.moth - meta.template.body.moth - string - comment",

@@ -12,12 +12,11 @@ page_title #= "Templates"
 page_description #String = "Template syntax in Moth."
 page_head #= theme_head
 
-#[p: This paragraph is styled by the HTML builder's @html constants. ]
+#[p: This paragraph is styled by the HTML builder's @html constants.]
 
 count ~= 0
 ratio Float = 1.5
 text_slice = "text"
-raw_slice = `raw`
 letter = 'A'
 
 message = [:
@@ -54,34 +53,34 @@ display |this Person| -> String:
     return this.name
 ;
 
-vec ~= Person(name = "Nye", age = 30)
-~vec.display()
+person ~= Person(name = "Nye", age = 30)
+~person.display()
 
 if value is true:
-    io("then")
+    io.line("then")
 else
-    io("else")
+    io.line("else")
 ;
 
 if value is:
-    0 => io("zero")
+    0 => io.line("zero")
     else =>
 ;
 
 loop items |item, index|:
-    io([item])
+    io.line([item])
 ;
 
 loop 0 to 10 by 2 |i|:
-    io([i])
+    io.line([i])
 ;
 
 loop 0 to & 10 |i|:
-    io([i])
+    io.line([i])
 ;
 
-assert(index < items.length)
-assert(index < items.length, "out of bounds")
+assert(index < items.length())
+assert(index < items.length(), "out of bounds")
 
 maybe_name String? = none
 display_name = if maybe_name is |name| then name else "guest"
@@ -108,11 +107,11 @@ value = identity(42)
 
 -- Template with code blocks
 [codeblock, $code("moth"):
-    io("Hello, World!")
+    io.line("Hello, World!")
 
     import @html {p}
     name = "Alice"
-    io([: Hello, [name]])
+    io.line([: Hello, [name]])
 ]
 
 [codeblock, $code("js"):
@@ -166,9 +165,7 @@ value = identity(42)
 
 -- Template with slot and insert
 [$slot]
-
 [$slot("style")]
-
 [$insert("style"): color: blue;]
 
 [$children([: Prefix]):
@@ -229,35 +226,10 @@ after_css_marker = "not css"
     [codeblock, $code("moth"):
         # docs/intro.mtf
 
-        # Getting started
-
         [p:
             This paragraph is styled by the HTML builder's @html constants.
         ]
     ]
 
-    Moth Templates start inside a template body, so `--`, backticks, and backslashes are normal text.
-    It also uses the same `$md` inline-code rules as `.moth` markdown templates.
-
-    Literal template delimiters use normal string insertion:
-
-    [codeblock, $code("moth"):
-        ["["]
-        ["]"]
-        ["[literal]"]
-    ]
+    Moth Template files start inside an implicit `$md` body.
 ]
-
--- Escape sequences
-escaped = \n \a \[ \]
-
--- This receiver param
-reset |this ~Vector2|:
-    this.x = 0
-    this.y = 0
-;
-
--- Traits
-SHOW must:
-    show |This| -> String
-;

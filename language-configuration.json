@@ -1,32 +1,83 @@
 {
-    "comments": {
-        "lineComment": "--"
+  "comments": {
+    "lineComment": "--"
+  },
+  "brackets": [
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ],
+    [
+      "|",
+      "|"
+    ]
+  ],
+  "autoClosingPairs": [
+    {
+      "open": "{",
+      "close": "}"
     },
-    // symbols used as brackets
-    "brackets": [
-        ["{", "}"],
-        ["[", "]"],
-        ["(", ")"],
-        ["|", "|"],
+    {
+      "open": "[",
+      "close": "]"
+    },
+    {
+      "open": "(",
+      "close": ")"
+    },
+    {
+      "open": "\"",
+      "close": "\""
+    },
+    {
+      "open": "'",
+      "close": "'"
+    },
+    {
+      "open": "|",
+      "close": "|"
+    },
+    {
+      "open": "`",
+      "close": "`"
+    }
+  ],
+  "surroundingPairs": [
+    [
+      "{",
+      "}"
     ],
-    // symbols that are auto closed when typing
-    "autoClosingPairs": [
-        { "open": "{", "close": "}" },
-        { "open": "[", "close": "]" },
-        { "open": "(", "close": ")" },
-        { "open": "\"", "close": "\"" },
-        { "open": "'", "close": "'" },
-        { "open": "|", "close": "|" },
-        { "open": "`", "close": "`" }
+    [
+      "[",
+      "]"
     ],
-    // symbols that can be used to surround a selection
-    "surroundingPairs": [
-        ["{", "}"],
-        ["[", "]"],
-        ["(", ")"],
-        ["\"", "\""],
-        ["'", "'"],
-        ["|", "|"],
-        ["`", "`"]
-    ] 
+    [
+      "(",
+      ")"
+    ],
+    [
+      "\"",
+      "\""
+    ],
+    [
+      "'",
+      "'"
+    ],
+    [
+      "|",
+      "|"
+    ],
+    [
+      "`",
+      "`"
+    ]
+  ]
 }

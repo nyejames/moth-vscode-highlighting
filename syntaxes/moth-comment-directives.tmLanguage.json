@@ -1,5 +1,5 @@
 {
-  "version": "0.2.2",
+  "version": "0.2.8",
   "name": "Moth Template Comment Directives",
   "scopeName": "source.moth.comment-directives",
   "injectionSelector": "L:(source.moth, source.mtf) - string - comment",
@@ -32,7 +32,7 @@
               "name": "punctuation.separator.template.head-body.moth keyword.control.scope.delimiter.moth"
             }
           },
-          "end": "(?=(?<!\\\\)\\])",
+          "end": "(?=\\])",
           "contentName": "comment.line.double-dash.moth comment.block.template.comment.moth",
           "patterns": [
             {
@@ -57,11 +57,8 @@
               "name": "punctuation.separator.template.head-body.moth keyword.control.scope.delimiter.moth"
             }
           },
-          "end": "(?=(?<!\\\\)\\])",
+          "end": "(?=\\])",
           "patterns": [
-            {
-              "include": "source.moth#escapes"
-            },
             {
               "include": "source.moth#template-slot-marker"
             },
@@ -109,13 +106,13 @@
       "patterns": [
         {
           "name": "meta.template.moth meta.template.comment.todo.moth",
-          "begin": "(?<!\\\\)\\[(?=[^\\]\\n]*\\$todo\\b)",
+          "begin": "\\[(?=[^\\]:]*\\$todo\\b)(?=[^\\]]*:)",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.template.begin.moth"
             }
           },
-          "end": "(?<!\\\\)\\]",
+          "end": "\\]",
           "endCaptures": {
             "0": {
               "name": "punctuation.section.template.end.moth"
@@ -136,13 +133,13 @@
       "patterns": [
         {
           "name": "meta.template.moth meta.template.comment.note.moth",
-          "begin": "(?<!\\\\)\\[(?=[^\\]\\n]*\\$note\\b)",
+          "begin": "\\[(?=[^\\]:]*\\$note\\b)(?=[^\\]]*:)",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.template.begin.moth"
             }
           },
-          "end": "(?<!\\\\)\\]",
+          "end": "\\]",
           "endCaptures": {
             "0": {
               "name": "punctuation.section.template.end.moth"
@@ -163,13 +160,13 @@
       "patterns": [
         {
           "name": "meta.template.moth meta.template.doc.moth meta.template.markdown.moth",
-          "begin": "(?<!\\\\)\\[(?=[^\\]\\n]*\\$doc\\b)",
+          "begin": "\\[(?=[^\\]:]*\\$doc\\b)(?=[^\\]]*:)",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.template.begin.moth"
             }
           },
-          "end": "(?<!\\\\)\\]",
+          "end": "\\]",
           "endCaptures": {
             "0": {
               "name": "punctuation.section.template.end.moth"

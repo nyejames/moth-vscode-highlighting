@@ -1,6 +1,6 @@
 {
-  "version": "0.2.2",
-  "name": "Moth Template Files",
+  "version": "0.2.8",
+  "name": "Moth Template File",
   "scopeName": "source.mtf",
   "patterns": [
     {
@@ -15,9 +15,6 @@
         },
         {
           "include": "#mtf-template-explicit-generic"
-        },
-        {
-          "include": "source.moth#escapes"
         },
         {
           "include": "source.moth#template-slot-marker"
@@ -64,13 +61,13 @@
       "patterns": [
         {
           "name": "meta.template.moth meta.template.markdown.moth",
-          "begin": "(?<!\\\\)\\[(?=[^\\]:]*:)(?![^\\]:]*\\$(?!md\\b))",
+          "begin": "\\[(?=[^\\]:]*:)(?![^\\]:]*\\$(?!md\\b))",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.template.begin.moth"
             }
           },
-          "end": "(?<!\\\\)\\]",
+          "end": "\\]",
           "endCaptures": {
             "0": {
               "name": "punctuation.section.template.end.moth"
@@ -97,11 +94,8 @@
               "name": "punctuation.separator.template.head-body.moth keyword.control.scope.delimiter.moth"
             }
           },
-          "end": "(?=(?<!\\\\)\\])",
+          "end": "(?=\\])",
           "patterns": [
-            {
-              "include": "source.moth#escapes"
-            },
             {
               "include": "source.moth#template-slot-marker"
             },
@@ -155,13 +149,13 @@
       "patterns": [
         {
           "name": "meta.template.moth",
-          "begin": "(?<!\\\\)\\[(?=[^\\]:]*:)(?=[^\\]:]*\\$)(?![^\\]:]*\\$(?:md|code|css|html|doc|note|todo)\\b)",
+          "begin": "\\[(?=[^\\]:]*:)(?=[^\\]:]*\\$)(?![^\\]:]*\\$(?:md|code|css|html|doc|note|todo)\\b)",
           "beginCaptures": {
             "0": {
               "name": "punctuation.section.template.begin.moth"
             }
           },
-          "end": "(?<!\\\\)\\]",
+          "end": "\\]",
           "endCaptures": {
             "0": {
               "name": "punctuation.section.template.end.moth"
@@ -188,11 +182,8 @@
               "name": "punctuation.separator.template.head-body.moth keyword.control.scope.delimiter.moth"
             }
           },
-          "end": "(?=(?<!\\\\)\\])",
+          "end": "(?=\\])",
           "patterns": [
-            {
-              "include": "source.moth#escapes"
-            },
             {
               "include": "source.moth#template-slot-marker"
             },

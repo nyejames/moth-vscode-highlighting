@@ -1,21 +1,35 @@
 # Moth Template title
 
--- this is markdown body text, not a Moth comment.
+-- this is Markdown body text, not a Moth comment.
+
+Backslashes such as \ remain body text, while `inline code` uses paired backticks.
 
 [p:
-    This paragraph should be parsed as a nested Moth template inside the implicit `$md` body.
+    This paragraph is parsed as a nested Moth template inside the implicit `$md` body.
 
     - This nested body should use Markdown list highlighting.
 
     [child:
         * This deeper template should also use Markdown.
 
-        # heading to make it obvious
+        # Heading to make it obvious
     ]
 ]
 
+[
+    section,
+    $md:
+    ## Multiline template head
+
+    This remains Markdown.
+]
+
 [raw_content, $raw:
-    - This explicit formatter should not use Markdown highlighting.
+    - This explicit formatter should not use Markdown list highlighting.
+]
+
+[escaped_content, $escape_html:
+    <strong>This is escaped content.</strong>
 ]
 
 [$doc:
