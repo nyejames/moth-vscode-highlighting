@@ -1,12 +1,13 @@
 -- Single-line comment
 
-import @styles/docs {navbar, title, section}
-import @html {center}
-import @core/math as math
-import @strings {
-    @nested/import {parse_number, identity},
-    thing as another_thing,
-}
+@styles/docs navbar, title, section
+@html center
+@core/math as math
+@strings parse_number,
+    identity,
+    thing as another_thing
+
+import = "ordinary identifier"
 
 page_title #= "Templates"
 page_description #String = "Template syntax in Moth."
@@ -109,7 +110,7 @@ value = identity(42)
 [codeblock, $code("moth"):
     io.line("Hello, World!")
 
-    import @html {p}
+    @html p
     name = "Alice"
     io.line([: Hello, [name]])
 ]

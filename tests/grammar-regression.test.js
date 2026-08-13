@@ -149,7 +149,6 @@ test("current flow, logical, declaration, conversion, and range keywords are pre
     "not",
     "and",
     "or",
-    "import",
     "export",
     "as",
     "copy",
@@ -160,6 +159,14 @@ test("current flow, logical, declaration, conversion, and range keywords are pre
   ]) {
     assert.ok(new RegExp(`\\b${keyword}\\b`).test(keywordText), `missing keyword '${keyword}'`);
   }
+});
+
+test("import is an ordinary identifier rather than a Moth keyword", () => {
+  const keywordText = grammar.repository.keywords.patterns
+    .map((pattern) => pattern.match || "")
+    .join(" ");
+
+  assert.doesNotMatch(keywordText, /\\bimport\\b/);
 });
 
 test("removed case and yield keywords are absent", () => {
@@ -475,7 +482,6 @@ test("all expected repository families are present", () => {
   const expected = [
     "comments",
     "path-literals",
-    "path-group",
     "invalid-at-sign",
     "template-code-js",
     "template-code-ts",
@@ -637,9 +643,12 @@ test("Moth fixture contains current syntax and migration regression cases", () =
 
   for (const snippet of [
     "-- Single-line comment",
-    "import @styles/docs {navbar, title, section}",
-    "import @html {center}",
-    "import @core/math as math",
+    "@styles/docs navbar, title, section",
+    "@html center",
+    "@core/math as math",
+    "@strings parse_number,",
+    "thing as another_thing",
+    'import = "ordinary identifier"',
     'page_title #= "Templates"',
     'page_description #String = "Template syntax in Moth."',
     "count ~= 0",

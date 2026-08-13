@@ -6,7 +6,7 @@
   "files": [
     "package.json",
     "syntaxes/moth.tmLanguage.json",
-    "syntaxes/moth-import-groups.tmLanguage.json",
+    "syntaxes/moth-dependency-clauses.tmLanguage.json",
     "syntaxes/moth-comment-directives.tmLanguage.json",
     "syntaxes/mtf.tmLanguage.json",
     "language-configuration.json",
@@ -84,10 +84,11 @@
         }
       },
       {
-        "scopeName": "source.moth.import-groups",
-        "path": "./syntaxes/moth-import-groups.tmLanguage.json",
+        "scopeName": "source.moth.dependency-clauses",
+        "path": "./syntaxes/moth-dependency-clauses.tmLanguage.json",
         "injectTo": [
-          "source.moth"
+          "source.moth",
+          "source.mtf"
         ]
       },
       {
@@ -120,5 +121,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/H3licopter/moth-plugin"
+  },
+  "devDependencies": {
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   }
 }

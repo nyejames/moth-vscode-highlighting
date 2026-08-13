@@ -38,10 +38,8 @@ Backslashes such as \ remain body text, while `inline code` uses paired backtick
     This should highlight like `$md`, including `inline code`.
 
     [codeblock, $code("moth"):
-        import @docs {
-            pages/home {render as render_home},
-            pages/about {content as about_content},
-        }
+        @docs render as render_home,
+            content as about_content
     ]
 ]
 
