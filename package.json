@@ -2,7 +2,7 @@
   "name": "moth-highligher",
   "displayName": "Moth",
   "description": "Syntax highlighting for Moth",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "files": [
     "package.json",
     "syntaxes/moth.tmLanguage.json",

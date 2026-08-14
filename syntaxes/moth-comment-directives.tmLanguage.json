@@ -1,5 +1,5 @@
 {
-  "version": "0.2.8",
+  "version": "0.2.9",
   "name": "Moth Template Comment Directives",
   "scopeName": "source.moth.comment-directives",
   "injectionSelector": "L:(source.moth, source.mtf) - string - comment",
