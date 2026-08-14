@@ -7,6 +7,9 @@
       "include": "#comments"
     },
     {
+      "include": "#dependency-clauses"
+    },
+    {
       "include": "#path-literals"
     },
     {
@@ -92,15 +95,15 @@
       "patterns": [
         {
           "name": "invalid.illegal.path-at.moth",
-          "match": "@(?!\\(|[A-Za-z_./\\\\])"
+          "match": "@(?![A-Za-z_./\\\\\"])"
         }
       ]
     },
     "path-literals": {
       "patterns": [
         {
-          "name": "meta.path.literal.moth",
-          "begin": "(@)(?=[A-Za-z_./\\\\])",
+          "name": "meta.path.moth",
+          "begin": "(@)(?=[A-Za-z_./\\\\\"])",
           "beginCaptures": {
             "1": {
               "name": "punctuation.definition.path.begin.moth"
@@ -109,16 +112,11 @@
           "end": "(?=$|\\s|[,;\\]\\)\\}])",
           "patterns": [
             {
-              "name": "punctuation.separator.path.moth",
-              "match": "[\\\\/]"
+              "include": "#path-components"
             },
             {
               "name": "constant.other.path.relative.moth",
               "match": "\\.{1,2}(?=[\\\\/\\s\\]\\)\\},;]|$)"
-            },
-            {
-              "name": "entity.name.path.segment.moth entity.name.module.moth",
-              "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
             },
             {
               "name": "text.whitespace.moth",
@@ -126,7 +124,7 @@
             },
             {
               "name": "invalid.illegal.path.character.moth",
-              "match": "[^\\sA-Za-z0-9_{}\\\\/,\\.]"
+              "match": "[^\\sA-Za-z0-9_{}\\\\/,.\"-]"
             }
           ]
         }
@@ -2333,6 +2331,9 @@
           "include": "#comments"
         },
         {
+          "include": "#dependency-clauses"
+        },
+        {
           "include": "#path-literals"
         },
         {
@@ -2640,6 +2641,153 @@
         {
           "name": "variable.other.moth",
           "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "path-components": {
+      "patterns": [
+        {
+          "name": "punctuation.separator.path.moth",
+          "match": "[\\\\/]"
+        },
+        {
+          "name": "entity.name.namespace.moth",
+          "match": "\"(?:\\\\[\"\\\\]|[^\"\\\\])*\"|[A-Za-z0-9_.-]+"
+        }
+      ]
+    },
+    "dependency-clauses": {
+      "patterns": [
+        {
+          "name": "meta.dependency-clause.moth",
+          "begin": "^(\\s*)(@)((?:\"(?:\\\\[\"\\\\]|[^\"\\\\])*\"|[A-Za-z0-9_.-]+)(?:[\\\\/](?:\"(?:\\\\[\"\\\\]|[^\"\\\\])*\"|[A-Za-z0-9_.-]+))*)(?:(\\s+)(as)(\\s+)([A-Za-z_][A-Za-z0-9_]*)(?=\\s*(?:--.*)?$))?",
+          "beginCaptures": {
+            "2": {
+              "name": "punctuation.definition.path.begin.moth"
+            },
+            "3": {
+              "name": "meta.path.dependency.moth entity.name.namespace.moth"
+            },
+            "5": {
+              "name": "keyword.other.alias.moth"
+            },
+            "7": {
+              "name": "entity.name.namespace.alias.moth"
+            }
+          },
+          "end": "$|(?=[^ \\t\\nA-Za-z_,-])",
+          "patterns": [
+            {
+              "include": "#dependency-continuation"
+            },
+            {
+              "include": "#dependency-selection-alias"
+            },
+            {
+              "include": "#dependency-selection"
+            },
+            {
+              "include": "#comments"
+            },
+            {
+              "match": "[ \\t]+",
+              "name": "text.whitespace.moth"
+            }
+          ]
+        },
+        {
+          "name": "meta.dependency-clause.moth",
+          "begin": "(export)(\\s*)(:)(\\s*)(@)((?:\"(?:\\\\[\"\\\\]|[^\"\\\\])*\"|[A-Za-z0-9_.-]+)(?:[\\\\/](?:\"(?:\\\\[\"\\\\]|[^\"\\\\])*\"|[A-Za-z0-9_.-]+))*)(\\s+)([A-Za-z_][A-Za-z0-9_]*)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.other.moth"
+            },
+            "3": {
+              "name": "punctuation.separator.colon.moth keyword.control.scope.delimiter.moth"
+            },
+            "5": {
+              "name": "punctuation.definition.path.begin.moth"
+            },
+            "6": {
+              "name": "meta.path.dependency.moth entity.name.namespace.moth"
+            },
+            "8": {
+              "name": "variable.other.dependency.selection.moth"
+            }
+          },
+          "end": "$|(?=[^ \\t\\nA-Za-z_,-])",
+          "patterns": [
+            {
+              "include": "#dependency-continuation"
+            },
+            {
+              "include": "#dependency-selection-alias"
+            },
+            {
+              "include": "#dependency-selection"
+            },
+            {
+              "include": "#comments"
+            },
+            {
+              "match": "[ \\t]+",
+              "name": "text.whitespace.moth"
+            }
+          ]
+        }
+      ]
+    },
+    "dependency-continuation": {
+      "patterns": [
+        {
+          "begin": "(,)([ \\t]*)?(--[^\\n]*)?",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.separator.comma.moth"
+            },
+            "2": {
+              "name": "text.whitespace.moth"
+            },
+            "3": {
+              "name": "comment.line.double-dash.moth"
+            }
+          },
+          "end": "(?=[A-Za-z_-])|(?=[^ \\t\\nA-Za-z_,-])",
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "match": "[ \\t]+",
+              "name": "text.whitespace.moth"
+            }
+          ]
+        }
+      ]
+    },
+    "dependency-selection-alias": {
+      "patterns": [
+        {
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\s+)(as)(\\s+)([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "variable.other.dependency.selection.moth"
+            },
+            "3": {
+              "name": "keyword.other.alias.moth"
+            },
+            "5": {
+              "name": "variable.other.dependency.alias.moth"
+            }
+          }
+        }
+      ]
+    },
+    "dependency-selection": {
+      "patterns": [
+        {
+          "name": "variable.other.dependency.selection.moth",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
         }
       ]
     }

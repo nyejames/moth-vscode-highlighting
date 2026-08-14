@@ -45,7 +45,6 @@ const mothConfig = readJson("language-configuration.json");
 const mtfConfig = readJson("mtf-language-configuration.json");
 const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
 const mtfGrammar = readJson("syntaxes/mtf.tmLanguage.json");
-const dependencyGrammar = readJson("syntaxes/moth-dependency-clauses.tmLanguage.json");
 const commentGrammar = readJson("syntaxes/moth-comment-directives.tmLanguage.json");
 
 const mothFixturePath = path.join(__dirname, "fixtures", "highlighting-samples.moth");
@@ -127,7 +126,7 @@ test("the MTF grammar is bound to the mtf language and source.mtf scope", () => 
 });
 
 test("internal repository includes resolve in all migration support grammars", () => {
-  for (const grammar of [mtfGrammar, dependencyGrammar, commentGrammar]) {
+  for (const grammar of [mtfGrammar, mothGrammar, commentGrammar]) {
     const missing = [];
     walkObjects(grammar, (node) => {
       if (typeof node.include !== "string" || !node.include.startsWith("#")) return;
@@ -141,56 +140,120 @@ test("internal repository includes resolve in all migration support grammars", (
 
 // ── DEPENDENCY CLAUSES ───────────────────────────────────────────────
 
-test("package injects dependency clause highlighting into Moth and embedded MTF source", () => {
+test("dependency clauses are integrated into the main Moth grammar", () => {
+  const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
+  assert.ok(
+    Object.hasOwn(mothGrammar.repository, "dependency-clauses"),
+    "expected dependency-clauses repository entry in main grammar"
+  );
+  const rootIncludes = mothGrammar.patterns.map((p) => p.include).filter(Boolean);
+  const depIdx = rootIncludes.indexOf("#dependency-clauses");
+  const pathIdx = rootIncludes.indexOf("#path-literals");
+  assert.ok(depIdx >= 0, "expected #dependency-clauses in root patterns");
+  assert.ok(pathIdx >= 0, "expected #path-literals in root patterns");
+  assert.ok(depIdx < pathIdx, "dependency-clauses must precede path-literals in root");
+
+  const codeMothIncludes = mothGrammar.repository["code-moth-fragment"].patterns
+    .map((p) => p.include)
+    .filter(Boolean);
+  const depIdx2 = codeMothIncludes.indexOf("#dependency-clauses");
+  const pathIdx2 = codeMothIncludes.indexOf("#path-literals");
+  assert.ok(depIdx2 >= 0, "expected #dependency-clauses in code-moth-fragment");
+  assert.ok(pathIdx2 >= 0, "expected #path-literals in code-moth-fragment");
+  assert.ok(depIdx2 < pathIdx2, "dependency-clauses must precede path-literals in embedded Moth");
+});
+
+test("no separate dependency injection grammar is packaged", () => {
   const contribution = pkg.contributes.grammars.find(
     (entry) => entry.scopeName === "source.moth.dependency-clauses"
   );
-
-  assert.ok(contribution, "expected the dependency-clause injection grammar");
-  assert.deepEqual(contribution.injectTo, ["source.moth", "source.mtf"]);
-  assert.equal(contribution.path, "./syntaxes/moth-dependency-clauses.tmLanguage.json");
-  assert.equal(
-    dependencyGrammar.injectionSelector,
-    "L:source.moth - meta.template.body.moth - string - comment, L:source.moth.embedded - string - comment"
+  assert.ok(!contribution, "no separate dependency injection grammar should exist");
+  assert.ok(
+    !pkg.files.includes("syntaxes/moth-dependency-clauses.tmLanguage.json"),
+    "dependency injection grammar file must not be in files list"
   );
 });
 
-test("dependency clauses distinguish namespace and selected aliases", () => {
-  const clausePattern = dependencyGrammar.repository["dependency-clause"].patterns[0];
-  assert.match(clausePattern.beginCaptures["5"].name, /alias\.namespace/);
-  assert.match(clausePattern.beginCaptures["7"].name, /namespace\.alias/);
-
-  const selectionAlias = clausePattern.patterns.find(
-    (pattern) => pattern.name === "meta.dependency.selection.alias.moth"
-  );
-  assert.ok(selectionAlias, "expected selected-name alias highlighting");
-  assert.match(selectionAlias.captures["3"].name, /alias\.selection/);
-  assert.match(selectionAlias.captures["5"].name, /selection\.alias/);
-});
-
-test("dependency clauses use commas to continue onto following lines", () => {
-  const clausePattern = dependencyGrammar.repository["dependency-clause"].patterns[0];
-  assert.match(clausePattern.end, /A-Za-z_/);
-  assert.ok(clausePattern.end.includes("\\s*,?\\s*$"));
-
-  const comma = clausePattern.patterns.find(
-    (pattern) => pattern.name === "punctuation.separator.comma.moth"
-  );
-  assert.ok(comma);
-  assert.ok(new RegExp(comma.match).test(","));
-});
-
-test("dependency clauses quarantine removed selection delimiters", () => {
-  const clausePattern = dependencyGrammar.repository["dependency-clause"].patterns[0];
-  const invalidDelimiter = clausePattern.patterns.find(
-    (pattern) => pattern.name === "invalid.illegal.dependency.delimiter.moth"
-  );
-
-  assert.ok(invalidDelimiter);
-  const delimiterPattern = new RegExp(invalidDelimiter.begin);
-  for (const delimiter of ["{", "(", "|", ":"]) {
-    assert.ok(delimiterPattern.test(delimiter), `expected '${delimiter}' to stop selections`);
+test("dependency clause scope contract uses required scope families", () => {
+  const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
+  const scopes = new Set();
+  function walk(v) {
+    if (!v || typeof v !== "object") return;
+    if (typeof v.name === "string") for (const s of v.name.split(" ")) scopes.add(s);
+    if (typeof v.contentName === "string") for (const s of v.contentName.split(" ")) scopes.add(s);
+    if (v.beginCaptures) for (const c of Object.values(v.beginCaptures)) {
+      if (c && typeof c.name === "string") for (const s of c.name.split(" ")) scopes.add(s);
+    }
+    if (v.endCaptures) for (const c of Object.values(v.endCaptures)) {
+      if (c && typeof c.name === "string") for (const s of c.name.split(" ")) scopes.add(s);
+    }
+    if (v.captures) for (const c of Object.values(v.captures)) {
+      if (c && typeof c.name === "string") for (const s of c.name.split(" ")) scopes.add(s);
+    }
+    for (const val of Object.values(v)) walk(val);
   }
+  walk(mothGrammar.repository["dependency-clauses"]);
+  walk(mothGrammar.repository["dependency-continuation"]);
+  walk(mothGrammar.repository["dependency-selection-alias"]);
+  walk(mothGrammar.repository["dependency-selection"]);
+
+  for (const required of [
+    "meta.dependency-clause.moth",
+    "punctuation.definition.path.begin.moth",
+    "entity.name.namespace.moth",
+    "keyword.other.alias.moth",
+    "entity.name.namespace.alias.moth",
+    "variable.other.dependency.selection.moth",
+    "variable.other.dependency.alias.moth",
+    "punctuation.separator.comma.moth",
+  ]) {
+    assert.ok(scopes.has(required), `missing required scope '${required}'`);
+  }
+});
+
+test("import is absent from keyword patterns", () => {
+  const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
+  const keywordText = mothGrammar.repository.keywords.patterns
+    .map((p) => p.match || "")
+    .join(" ");
+  assert.doesNotMatch(keywordText, /\bimport\b/);
+});
+
+test("no old import scope survives in any grammar", () => {
+  for (const relPath of [
+    "syntaxes/moth.tmLanguage.json",
+    "syntaxes/mtf.tmLanguage.json",
+    "syntaxes/moth-comment-directives.tmLanguage.json",
+  ]) {
+    const text = fs.readFileSync(path.join(rootDir, relPath), "utf8");
+    assert.ok(
+      !text.includes("keyword.control.import.moth"),
+      `${relPath} still contains keyword.control.import.moth`
+    );
+    assert.ok(
+      !text.includes("meta.path.import.moth"),
+      `${relPath} still contains meta.path.import.moth`
+    );
+    assert.ok(
+      !text.includes("entity.name.import.symbol.moth"),
+      `${relPath} still contains entity.name.import.symbol.moth`
+    );
+    assert.ok(
+      !text.includes("source.moth.import-groups"),
+      `${relPath} still contains source.moth.import-groups`
+    );
+  }
+});
+
+test("removed import-group grammar file does not exist", () => {
+  assert.ok(
+    !fs.existsSync(path.join(rootDir, "syntaxes/moth-import-groups.tmLanguage.json")),
+    "old import-group grammar file must not exist"
+  );
+  assert.ok(
+    !fs.existsSync(path.join(rootDir, "syntaxes/moth-dependency-clauses.tmLanguage.json")),
+    "separate dependency injection grammar file must not exist"
+  );
 });
 
 // ── MOTH TEMPLATE FILES ──────────────────────────────────────────────
@@ -353,9 +416,17 @@ test("fixtures contain the cases needed for manual token inspection", () => {
 
   for (const snippet of [
     '@styles/docs navbar, title, section',
-    '@strings parse_number,',
-    'thing as another_thing',
-    'import = "ordinary identifier"',
+    '@core/math as math',
+    '@drawing.js draw,',
+    '@drawing.js as drawing',
+    'import = 1',
+    '@html/tables data, -- clause continues',
+    'row = build_row()',
+    '@core/math {sin, cos}',
+    'logo #= @assets/logo.svg',
+    'font #= @fonts/"Computer Modern.woff2"',
+    'page = [@pages/home.mtf]',
+    'root = @/',
     '$code("moth")',
     "items.length()",
     "io.line(\"then\")",
@@ -376,6 +447,8 @@ test("fixtures contain the cases needed for manual token inspection", () => {
     "$note:",
     '$code("moth")',
     '["[literal]"]',
+    "@docs/pages/home render as render_home",
+    "@docs/pages/about content as about_content",
   ]) {
     assert.ok(mtfFixture.includes(snippet), `expected .mtf fixture to include '${snippet}'`);
   }
@@ -384,8 +457,8 @@ test("fixtures contain the cases needed for manual token inspection", () => {
 test("migration support files contain no Beanstalk, BST, BD, or source.bd identifiers", () => {
   const paths = [
     "package.json",
+    "syntaxes/moth.tmLanguage.json",
     "syntaxes/mtf.tmLanguage.json",
-    "syntaxes/moth-dependency-clauses.tmLanguage.json",
     "syntaxes/moth-comment-directives.tmLanguage.json",
     "tests/fixtures/highlighting-samples.moth",
     "tests/fixtures/highlighting-samples.mtf",

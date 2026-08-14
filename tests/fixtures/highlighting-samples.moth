@@ -3,15 +3,26 @@
 @styles/docs navbar, title, section
 @html center
 @core/math as math
-@strings parse_number,
-    identity,
-    thing as another_thing
 
-import = "ordinary identifier"
+@docs/pages/home render as render_home
+@docs/pages/about content as about_content
+
+@drawing.js draw,
+    clear,
+    Canvas
+
+@drawing.js as drawing
+
+import = 1
 
 page_title #= "Templates"
 page_description #String = "Template syntax in Moth."
 page_head #= theme_head
+
+logo #= @assets/logo.svg
+font #= @fonts/"Computer Modern.woff2"
+page = [@pages/home.mtf]
+root = @/
 
 #[p: This paragraph is styled by the HTML builder's @html constants.]
 
@@ -93,6 +104,22 @@ fallback = parse_number(text) catch:
 
 count_text String = cast count
 value = identity(42)
+
+-- Multiline continuation with comment after comma
+@html/tables data, -- clause continues
+    row,
+    heading
+
+-- Newline termination without comma
+@html/tables data
+row = build_row()
+
+-- Malformed trailing comma followed by a declaration
+@html/tables data,
+row = build_row()
+
+-- Brace-delimited legacy form (intentionally invalid highlighting sample)
+@core/math {sin, cos}
 
 -- Template with markdown
 [$md:

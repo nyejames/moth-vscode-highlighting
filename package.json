@@ -6,7 +6,6 @@
   "files": [
     "package.json",
     "syntaxes/moth.tmLanguage.json",
-    "syntaxes/moth-dependency-clauses.tmLanguage.json",
     "syntaxes/moth-comment-directives.tmLanguage.json",
     "syntaxes/mtf.tmLanguage.json",
     "language-configuration.json",
@@ -84,14 +83,6 @@
         }
       },
       {
-        "scopeName": "source.moth.dependency-clauses",
-        "path": "./syntaxes/moth-dependency-clauses.tmLanguage.json",
-        "injectTo": [
-          "source.moth",
-          "source.mtf"
-        ]
-      },
-      {
         "scopeName": "source.moth.comment-directives",
         "path": "./syntaxes/moth-comment-directives.tmLanguage.json",
         "injectTo": [
@@ -120,7 +111,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/H3licopter/moth-plugin"
+    "url": "https://github.com/nyejames/moth-vscode-highlighting"
   },
   "devDependencies": {
     "vscode-oniguruma": "^2.0.1",

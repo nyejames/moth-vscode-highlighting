@@ -38,8 +38,8 @@ Backslashes such as \ remain body text, while `inline code` uses paired backtick
     This should highlight like `$md`, including `inline code`.
 
     [codeblock, $code("moth"):
-        @docs render as render_home,
-            content as about_content
+        @docs/pages/home render as render_home
+        @docs/pages/about content as about_content
     ]
 ]
 
