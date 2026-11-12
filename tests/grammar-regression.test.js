@@ -122,7 +122,7 @@ test("assert is highlighted as a builtin intrinsic rather than keyword.other", (
     (pattern) => pattern.name === "support.function.builtin.moth"
   );
   assert.ok(builtinPattern, "expected support.function.builtin.moth");
-  assert.match(builtinPattern.match, /\bassert\b/);
+  assert.match(builtinPattern.match, /\\bassert\\b/);
 
   const keywordOther = grammar.repository.keywords.patterns.find(
     (pattern) => pattern.name === "keyword.other.moth"
@@ -208,10 +208,10 @@ test("exact-width types, decimals, option none, and lowercase booleans are prese
   for (const old of ["Int", "Float", "Fn", "IO", "Dec01", "Dec257", "I128"]) {
     assert.ok(!isPrimitive(old), `unexpected primitive '${old}'`);
   }
-  assert.match(boolean.match, /\\btrue\\b/);
-  assert.match(boolean.match, /\\bfalse\\b/);
-  assert.doesNotMatch(boolean.match, /\\bTrue\\b/);
-  assert.match(none.match, /\\bnone\\b/);
+  assert.match(boolean.match, /\btrue\b/);
+  assert.match(boolean.match, /\bfalse\b/);
+  assert.doesNotMatch(boolean.match, /\bTrue\b/);
+  assert.match(none.match, /\bnone\b/);
 });
 
 test("type and of use the generic-language scope", () => {
