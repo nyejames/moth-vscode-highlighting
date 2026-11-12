@@ -135,29 +135,14 @@ test("current flow, logical, declaration, conversion, and range keywords are pre
   const keywordText = grammar.repository.keywords.patterns
     .map((pattern) => pattern.match || "")
     .join(" ");
-
-  for (const keyword of [
-    "if",
-    "else",
-    "return",
-    "loop",
-    "break",
-    "continue",
-    "catch",
-    "then",
-    "is",
-    "not",
-    "and",
-    "or",
-    "export",
-    "as",
-    "copy",
-    "must",
-    "cast",
-    "to",
-    "by",
-  ]) {
-    assert.ok(new RegExp(`\\b${keyword}\\b`).test(keywordText), `missing keyword '${keyword}'`);
+  for (const keyword of ["if", "else", "return", "loop", "break", "continue",
+    "catch", "then", "is", "not", "and", "or", "as", "copy", "must",
+    "cast", "into", "to", "by"]) {
+    assert.ok(new RegExp("\\b" + keyword + "\\b").test(keywordText), `missing keyword '${keyword}'`);
+  }
+  for (const ordinary of ["export", "block", "import"]) {
+    assert.ok(!new RegExp("\\b" + ordinary + "\\b").test(keywordText),
+      `ordinary identifier '${ordinary}' must not be reserved`);
   }
 });
 
@@ -178,13 +163,15 @@ test("removed case and yield keywords are absent", () => {
   assert.doesNotMatch(flowPattern.match, /\byield\b/);
 });
 
-test("future-reserved async, checked, and block spellings remain highlighted", () => {
-  const keywordOther = grammar.repository.keywords.patterns.find(
-    (pattern) => pattern.name === "keyword.other.moth"
+test("future-reserved async, checked, and yield use a distinct scope", () => {
+  const reserved = grammar.repository.keywords.patterns.find(
+    (pattern) => pattern.name === "keyword.other.future-reserved.moth"
   );
-  for (const keyword of ["async", "checked", "block"]) {
-    assert.match(keywordOther.match, new RegExp(`\\b${keyword}\\b`));
+  assert.ok(reserved);
+  for (const keyword of ["async", "checked", "yield"]) {
+    assert.match(reserved.match, new RegExp("\\b" + keyword + "\\b"));
   }
+  assert.doesNotMatch(reserved.match, /\\bblock\\b/);
 });
 
 test("this and This use their distinct language scopes", () => {
@@ -202,7 +189,7 @@ test("this and This use their distinct language scopes", () => {
   assert.ok(regexp(`^(?:${traitThis.match})$`).test("This"));
 });
 
-test("current primitive types, option none, and lowercase booleans are present", () => {
+test("exact-width types, decimals, option none, and lowercase booleans are present", () => {
   const primitive = grammar.repository.types.patterns.find(
     (pattern) => pattern.name === "support.type.primitive.moth"
   );
@@ -212,19 +199,19 @@ test("current primitive types, option none, and lowercase booleans are present",
   const none = grammar.repository.types.patterns.find(
     (pattern) => pattern.name === "constant.language.none.moth"
   );
-
-  for (const type of ["Int", "Float", "String", "Bool", "Char"]) {
-    assert.match(primitive.match, new RegExp(`\\b${type}\\b`));
+  const isPrimitive = (name) => regexp(`^(?:${primitive.match})$`).test(name);
+  for (const name of ["I8", "I16", "I32", "I64", "U8", "U16", "U32", "U64",
+    "F16", "F32", "F64", "Bool", "String", "Char", "Byte",
+    "None", "True", "False", "Dec", "Dec0", "Dec4", "Dec99", "Dec100", "Dec256"]) {
+    assert.ok(isPrimitive(name), `missing primitive '${name}'`);
   }
-  for (const removed of ["None", "Fn"]) {
-    assert.doesNotMatch(primitive.match, new RegExp(`\\b${removed}\\b`));
+  for (const old of ["Int", "Float", "Fn", "IO", "Dec01", "Dec257", "I128"]) {
+    assert.ok(!isPrimitive(old), `unexpected primitive '${old}'`);
   }
-
-  assert.match(boolean.match, /\btrue\b/);
-  assert.match(boolean.match, /\bfalse\b/);
-  assert.doesNotMatch(boolean.match, /\bTrue\b/);
-  assert.doesNotMatch(boolean.match, /\bFalse\b/);
-  assert.match(none.match, /\bnone\b/);
+  assert.match(boolean.match, /\\btrue\\b/);
+  assert.match(boolean.match, /\\bfalse\\b/);
+  assert.doesNotMatch(boolean.match, /\\bTrue\\b/);
+  assert.match(none.match, /\\bnone\\b/);
 });
 
 test("type and of use the generic-language scope", () => {
@@ -246,17 +233,54 @@ test("Error remains a builtin type", () => {
 
 // ── OPERATORS, PUNCTUATION, AND NUMBERS ──────────────────────────────
 
-test("symbol operators include Moth's multi-character forms", () => {
+test("active symbol operators retain current Moth spellings", () => {
   const symbolPattern = grammar.repository.operators.patterns.find(
     (pattern) => pattern.name === "keyword.operator.symbol.moth"
   );
   assert.ok(symbolPattern);
-
   const re = regexp(`^(?:${symbolPattern.match})$`);
-  for (const operator of ["+", "-", "=>", "->", "::", "//", "<=", ">=", "..", "$"]) {
+  for (const operator of ["+", "-", "=>", "->", "::", "//", "<=", ">=", "$"]) {
     assert.ok(re.test(operator), `expected operator '${operator}'`);
   }
+  assert.ok(!re.test(".."), "range syntax uses to/by, not '..'");
   assert.ok(!re.test("|"), "pipe is parameter punctuation rather than a symbolic operator");
+});
+
+test("future channel operators have their own scope", () => {
+  const channel = grammar.repository.operators.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.channel.future.moth"
+  );
+  assert.ok(channel);
+  for (const operator of ["<<", ">>"]) {
+    assert.ok(regexp(`^(?:${channel.match})$`).test(operator));
+  }
+  assert.ok(!regexp(`^(?:${channel.match})$`).test("<="));
+});
+
+test("Never, error-return, and fallible cast tokens have distinct rules", () => {
+  const keywords = grammar.repository.keywords.patterns;
+  const errorReturn = keywords.find((p) => p.name === "keyword.control.flow.error-return.moth");
+  const fallibleCast = keywords.find((p) => p.name === "keyword.control.conversion.fallible.moth");
+  const never = keywords.find((p) => p.name === "meta.function.return.never.moth");
+  assert.ok(errorReturn && fallibleCast && never);
+  assert.ok(regexp(`^(?:${errorReturn.match})$`).test("return!"));
+  assert.ok(regexp(`^(?:${fallibleCast.match})$`).test("cast!"));
+  assert.ok(regexp(`^(?:${never.match})$`).test("-> !"));
+  assert.equal(never.captures["3"].name, "storage.type.never.moth");
+});
+
+test("implemented source directives use a dedicated scope", () => {
+  assert.ok(rootIncludes().includes("#source-directives"));
+  assert.ok(repoIncludes("code-moth-fragment").includes("#source-directives"));
+  const rule = grammar.repository["source-directives"].patterns[0];
+  assert.equal(rule.name, "keyword.control.directive.source.moth");
+  const re = regexp(`^(?:${rule.match})$`);
+  for (const directive of ["$export", "$config", "$doc", "$todo"]) {
+    assert.ok(re.test(directive), `missing source directive ${directive}`);
+  }
+  for (const directive of ["$note", "$slot", "$children", "$exported"]) {
+    assert.ok(!re.test(directive), `unexpected source directive ${directive}`);
+  }
 });
 
 test("assignment/declaration operator forms remain highlighted", () => {

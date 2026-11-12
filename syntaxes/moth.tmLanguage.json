@@ -7,6 +7,9 @@
       "include": "#comments"
     },
     {
+      "include": "#source-directives"
+    },
+    {
       "include": "#dependency-clauses"
     },
     {
@@ -2331,6 +2334,9 @@
           "include": "#comments"
         },
         {
+          "include": "#source-directives"
+        },
+        {
           "include": "#dependency-clauses"
         },
         {
@@ -2515,6 +2521,26 @@
     "keywords": {
       "patterns": [
         {
+          "name": "keyword.control.flow.error-return.moth",
+          "match": "\\breturn!(?![A-Za-z0-9_])"
+        },
+        {
+          "name": "keyword.control.conversion.fallible.moth",
+          "match": "\\bcast!(?![A-Za-z0-9_])"
+        },
+        {
+          "name": "meta.function.return.never.moth",
+          "match": "(->)([ \\t]*)(!)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.return.moth"
+            },
+            "3": {
+              "name": "storage.type.never.moth"
+            }
+          }
+        },
+        {
           "name": "keyword.control.flow.moth",
           "match": "\\b(?:if|else|return|loop|break|continue|catch|then)\\b"
         },
@@ -2524,7 +2550,11 @@
         },
         {
           "name": "keyword.other.moth",
-          "match": "\\b(?:export|as|copy|must|cast|async|checked|block)\\b"
+          "match": "\\b(?:as|copy|must|cast|into)\\b"
+        },
+        {
+          "name": "keyword.other.future-reserved.moth",
+          "match": "\\b(?:async|checked|yield)\\b"
         },
         {
           "name": "keyword.control.logical.moth",
@@ -2540,7 +2570,7 @@
       "patterns": [
         {
           "name": "support.type.primitive.moth",
-          "match": "\\b(?:Int|Float|String|Bool|Char)\\b"
+          "match": "\\b(?:I(?:8|16|32|64)|U(?:8|16|32|64)|F(?:16|32|64)|Dec(?:0|[1-9]|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-6])?|Bool|String|Char|Byte|None|True|False)\\b"
         },
         {
           "name": "constant.language.boolean.moth",
@@ -2567,8 +2597,12 @@
           "match": "\\+=|-=|\\*=|//=|/=|%=|\\^=|#=|~="
         },
         {
+          "name": "keyword.operator.channel.future.moth",
+          "match": "<<|>>"
+        },
+        {
           "name": "keyword.operator.symbol.moth",
-          "match": "=>|->|::|<=|>=|>>|<<|\\.\\.|//|=|\\+|-|\\*|/|%|\\^|~|#|\\?|!|<|>|\\$"
+          "match": "=>|->|::|<=|>=|//|=|\\+|-|\\*|/|%|\\^|~|#|\\?|!|<|>|\\$"
         }
       ]
     },
@@ -2616,11 +2650,15 @@
       "patterns": [
         {
           "name": "support.function.builtin.moth",
-          "match": "\\b(?:io|assert)\\b"
+          "match": "\\bassert\\b"
+        },
+        {
+          "name": "support.namespace.builtin.moth",
+          "match": "\\bio\\b"
         },
         {
           "name": "support.type.builtin.moth",
-          "match": "\\b(?:Error|IO)\\b"
+          "match": "\\b(?:Error|Wire|Route)\\b"
         },
         {
           "name": "constant.other.caps.moth",
@@ -2788,6 +2826,14 @@
         {
           "name": "variable.other.dependency.selection.moth",
           "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "source-directives": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.source.moth",
+          "match": "\\$(?:export|config|doc|todo)\\b"
         }
       ]
     }
