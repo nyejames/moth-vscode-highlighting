@@ -44,6 +44,9 @@ function loadRegistry() {
 
 async function loadGrammar(scopeName = "source.moth") {
   const registry = await loadRegistry();
+  if (scopeName === "source.mtf") {
+    await registry.loadGrammar("source.moth");
+  }
   return registry.loadGrammar(scopeName);
 }
 
@@ -84,8 +87,13 @@ test("bare namespace receives dependency clause scopes", async () => {
   const line = "@core/math";
   const [tokens] = tokenizeLines(grammar, [line]);
 
-  assert.ok(hasScope(findToken(tokens, line, "@"), "punctuation.definition.path.begin.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "core/math"), "entity.name.namespace.moth"));
+  const atToken = findToken(tokens, line, "@");
+  assert.ok(hasScope(atToken, "punctuation.definition.path.begin.moth"));
+  assert.ok(hasScope(atToken, "entity.name.path.segment.moth"));
+  assert.ok(hasScope(atToken, "entity.name.module.moth"));
+  const pathToken = findToken(tokens, line, "core/math");
+  assert.ok(hasScope(pathToken, "entity.name.path.segment.moth"));
+  assert.ok(hasScope(pathToken, "entity.name.module.moth"));
   assert.ok(anyTokenWithScope(tokens, "meta.dependency-clause.moth"));
 });
 
@@ -94,10 +102,14 @@ test("namespace alias receives distinct namespace and alias scopes", async () =>
   const line = "@core/math as maths";
   const [tokens] = tokenizeLines(grammar, [line]);
 
-  assert.ok(hasScope(findToken(tokens, line, "@"), "punctuation.definition.path.begin.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "core/math"), "entity.name.namespace.moth"));
+  const atToken = findToken(tokens, line, "@");
+  assert.ok(hasScope(atToken, "punctuation.definition.path.begin.moth"));
+  assert.ok(hasScope(atToken, "entity.name.path.segment.moth"));
+  assert.ok(hasScope(findToken(tokens, line, "core/math"), "entity.name.path.segment.moth"));
   assert.ok(hasScope(findToken(tokens, line, "as"), "keyword.other.alias.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "maths"), "entity.name.namespace.alias.moth"));
+  const aliasToken = findToken(tokens, line, "maths");
+  assert.ok(hasScope(aliasToken, "variable.other.namespace.alias.moth"));
+  assert.ok(!hasScope(aliasToken, "entity.name.path.segment.moth"));
   assert.ok(anyTokenWithScope(tokens, "meta.dependency-clause.moth"));
 });
 
@@ -133,7 +145,7 @@ test("provider direct selections with explicit extension", async () => {
   const line = "@drawing.js draw, clear";
   const [tokens] = tokenizeLines(grammar, [line]);
 
-  assert.ok(hasScope(findToken(tokens, line, "drawing.js"), "entity.name.namespace.moth"));
+  assert.ok(hasScope(findToken(tokens, line, "drawing.js"), "entity.name.path.segment.moth"));
   assert.ok(hasScope(findToken(tokens, line, "draw"), "variable.other.dependency.selection.moth"));
   assert.ok(hasScope(findToken(tokens, line, "clear"), "variable.other.dependency.selection.moth"));
   assert.ok(anyTokenWithScope(tokens, "meta.dependency-clause.moth"));
@@ -144,17 +156,18 @@ test("provider namespace alias with explicit extension", async () => {
   const line = "@drawing.js as drawing";
   const [tokens] = tokenizeLines(grammar, [line]);
 
-  assert.ok(hasScope(findToken(tokens, line, "drawing.js"), "entity.name.namespace.moth"));
+  assert.ok(hasScope(findToken(tokens, line, "drawing.js"), "entity.name.path.segment.moth"));
   assert.ok(hasScope(findToken(tokens, line, "as"), "keyword.other.alias.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "drawing"), "entity.name.namespace.alias.moth"));
+  assert.ok(hasScope(findToken(tokens, line, "drawing"), "variable.other.namespace.alias.moth"));
   assert.ok(anyTokenWithScope(tokens, "meta.dependency-clause.moth"));
 });
 
-test("dependency inside a multiline export block", async () => {
+test("dependency after an export directive on the following line", async () => {
   const grammar = await loadGrammar();
-  const lines = ["export:", "    @core/math sin, cos", ";"];
+  const lines = ["$export", "@core/math sin, cos", ";"];
   const tokenLines = tokenizeLines(grammar, lines);
 
+  assert.ok(hasScope(findToken(tokenLines[0], lines[0], "$export"), "keyword.control.directive.source.moth"));
   assert.ok(hasScope(findToken(tokenLines[1], lines[1], "@"), "punctuation.definition.path.begin.moth"));
   assert.ok(hasScope(findToken(tokenLines[1], lines[1], "sin"), "variable.other.dependency.selection.moth"));
   assert.ok(hasScope(findToken(tokenLines[1], lines[1], "cos"), "variable.other.dependency.selection.moth"));
@@ -162,17 +175,28 @@ test("dependency inside a multiline export block", async () => {
   assert.ok(noTokenWithScope(tokenLines[2], "meta.dependency-clause.moth"));
 });
 
-test("dependency directly after export colon", async () => {
+test("export colon is an ordinary declaration, not a dependency block", async () => {
   const grammar = await loadGrammar();
   const lines = ["export: @core/math sin, cos", ";"];
   const tokenLines = tokenizeLines(grammar, lines);
 
-  assert.ok(hasScope(findToken(tokenLines[0], lines[0], "export"), "keyword.other.moth"));
-  assert.ok(hasScope(findToken(tokenLines[0], lines[0], "@"), "punctuation.definition.path.begin.moth"));
-  assert.ok(hasScope(findToken(tokenLines[0], lines[0], "sin"), "variable.other.dependency.selection.moth"));
-  assert.ok(hasScope(findToken(tokenLines[0], lines[0], "cos"), "variable.other.dependency.selection.moth"));
-  assert.ok(anyTokenWithScope(tokenLines[0], "meta.dependency-clause.moth"));
-  assert.ok(noTokenWithScope(tokenLines[1], "meta.dependency-clause.moth"));
+  assert.ok(hasScope(findToken(tokenLines[0], lines[0], "export"), "variable.other.moth"));
+  assert.ok(!hasScope(findToken(tokenLines[0], lines[0], "export"), "keyword.other.moth"));
+  assert.ok(noTokenWithScope(tokenLines[0], "meta.dependency-clause.moth"));
+  assert.ok(noTokenWithScope(tokenLines[0], "variable.other.dependency.selection.moth"));
+});
+
+test("export directive precedes aliased selections on the next line", async () => {
+  const grammar = await loadGrammar();
+  const lines = ["$export", "@components render as render_component, Button as UiButton"];
+  const tokenLines = tokenizeLines(grammar, lines);
+
+  assert.ok(hasScope(findToken(tokenLines[0], lines[0], "$export"), "keyword.control.directive.source.moth"));
+  assert.ok(hasScope(findToken(tokenLines[1], lines[1], "render"), "variable.other.dependency.selection.moth"));
+  assert.ok(hasScope(findToken(tokenLines[1], lines[1], "render_component"), "variable.other.dependency.alias.moth"));
+  assert.ok(hasScope(findToken(tokenLines[1], lines[1], "Button"), "variable.other.dependency.selection.moth"));
+  assert.ok(hasScope(findToken(tokenLines[1], lines[1], "UiButton"), "variable.other.dependency.alias.moth"));
+  assert.ok(anyTokenWithScope(tokenLines[1], "meta.dependency-clause.moth"));
 });
 
 test("comma-controlled multiline continuation", async () => {
@@ -363,8 +387,15 @@ test("RHS asset path receives path scopes not dependency scopes", async () => {
 
   assert.ok(noTokenWithScope(tokens, "meta.dependency-clause.moth"));
   assert.ok(anyTokenWithScope(tokens, "meta.path.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "@"), "punctuation.definition.path.begin.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "assets"), "entity.name.namespace.moth"));
+  const atToken = findToken(tokens, line, "@");
+  assert.ok(hasScope(atToken, "punctuation.definition.path.begin.moth"));
+  assert.ok(hasScope(atToken, "entity.name.path.segment.moth"));
+  assert.ok(hasScope(atToken, "entity.name.module.moth"));
+  const slashToken = findToken(tokens, line, "/");
+  assert.ok(hasScope(slashToken, "punctuation.separator.path.moth"));
+  assert.ok(hasScope(slashToken, "entity.name.path.segment.moth"));
+  assert.ok(hasScope(slashToken, "entity.name.module.moth"));
+  assert.ok(hasScope(findToken(tokens, line, "assets"), "entity.name.path.segment.moth"));
 });
 
 test("template-head path receives path scopes", async () => {
@@ -387,7 +418,7 @@ test("quoted component with spaces", async () => {
     line.slice(t.startIndex, t.endIndex).includes("Computer Modern")
   );
   assert.ok(quotedToken, "expected quoted path component");
-  assert.ok(hasScope(quotedToken, "entity.name.namespace.moth"));
+  assert.ok(hasScope(quotedToken, "entity.name.path.segment.moth"));
 });
 
 test("escaped quote and backslash in a quoted component", async () => {
@@ -405,8 +436,13 @@ test("exact @/ root path", async () => {
   const [tokens] = tokenizeLines(grammar, [line]);
 
   assert.ok(noTokenWithScope(tokens, "meta.dependency-clause.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "@"), "punctuation.definition.path.begin.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "/"), "punctuation.separator.path.moth"));
+  const atToken = findToken(tokens, line, "@");
+  assert.ok(hasScope(atToken, "punctuation.definition.path.begin.moth"));
+  assert.ok(hasScope(atToken, "entity.name.path.segment.moth"));
+  const slashToken = findToken(tokens, line, "/");
+  assert.ok(hasScope(slashToken, "punctuation.separator.path.moth"));
+  assert.ok(hasScope(slashToken, "entity.name.path.segment.moth"));
+  assert.ok(hasScope(slashToken, "entity.name.module.moth"));
 });
 
 test("explicit-extension path receives path scopes", async () => {
@@ -415,7 +451,7 @@ test("explicit-extension path receives path scopes", async () => {
   const [tokens] = tokenizeLines(grammar, [line]);
 
   assert.ok(anyTokenWithScope(tokens, "meta.path.moth"));
-  assert.ok(hasScope(findToken(tokens, line, "logo.svg"), "entity.name.namespace.moth"));
+  assert.ok(hasScope(findToken(tokens, line, "logo.svg"), "entity.name.path.segment.moth"));
 });
 
 test("general paths do not receive dependency-selection scopes", async () => {
@@ -453,10 +489,10 @@ test("nested Moth templates remain correctly scoped", async () => {
   assert.ok(anyTokenWithScope(tokenLines[0], "meta.template.moth"));
 });
 
-test("embedded $code('moth') recognises dependency clauses", async () => {
+test("embedded $code \"moth\" recognises dependency clauses", async () => {
   const grammar = await loadGrammar("source.mtf");
   const lines = [
-    '[codeblock, $code("moth"):',
+    '[codeblock, $code "moth":',
     "    @core/math sin,",
     "        cos as cosine",
     "]",
@@ -482,7 +518,7 @@ test("embedded $code('moth') recognises dependency clauses", async () => {
 test("embedded dependency state ends at the code-template boundary", async () => {
   const grammar = await loadGrammar("source.mtf");
   const lines = [
-    '[codeblock, $code("moth"):',
+    '[codeblock, $code "moth":',
     "    @core/math sin,",
     "        cos as cosine",
     "]",

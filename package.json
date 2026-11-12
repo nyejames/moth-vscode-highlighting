@@ -2,18 +2,18 @@
   "name": "moth-highligher",
   "displayName": "Moth",
   "description": "Syntax highlighting for Moth",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "files": [
     "package.json",
     "syntaxes/moth.tmLanguage.json",
-    "syntaxes/moth-comment-directives.tmLanguage.json",
     "syntaxes/mtf.tmLanguage.json",
     "language-configuration.json",
     "mtf-language-configuration.json",
     "icons/moth-logo.png",
     "icons/moth.png",
     "icons/moth-template-logo.png",
-    "LICENSE"
+    "LICENSE",
+    "docs/syntax-inventory.md"
   ],
   "publisher": "Nye",
   "license": "Apache-2.0",
@@ -81,14 +81,6 @@
           "meta.embedded.block.code.rs.moth": "rust",
           "meta.embedded.block.code.shell.moth": "shellscript"
         }
-      },
-      {
-        "scopeName": "source.moth.comment-directives",
-        "path": "./syntaxes/moth-comment-directives.tmLanguage.json",
-        "injectTo": [
-          "source.moth",
-          "source.mtf"
-        ]
       },
       {
         "language": "mtf",

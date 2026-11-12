@@ -1,56 +1,58 @@
-# Moth Template title
+# Moth Template title @#title
 
 -- this is Markdown body text, not a Moth comment.
 
-Backslashes such as \ remain body text, while `inline code` uses paired backticks.
+Backslashes such as \ remain body text, while `inline [name] code` uses paired backticks.
 
 [p:
     This paragraph is parsed as a nested Moth template inside the implicit `$md` body.
 
-    - This nested body should use Markdown list highlighting.
+    - This nested body uses Markdown list highlighting. @#nested
+    1. Ordered items also highlight.
+
+    **Bold** and *italic* text with a [name] interpolation.
+
+    See @./guide (Guide) and @#title (Top).
 
     [child:
-        * This deeper template should also use Markdown.
+        * Deeper templates also default to Markdown.
 
-        # Heading to make it obvious
+        # Heading in a child template
     ]
 ]
 
 [
     section,
     $md:
-    ## Multiline template head
+    ## Multiline template heads remain Markdown
 
     This remains Markdown.
 ]
 
 [raw_content, $raw:
-    - This explicit formatter should not use Markdown list highlighting.
+    - This explicit formatter does not use Markdown list highlighting.
+    Nested [name] templates still resolve.
 ]
 
 [escaped_content, $escape_html:
-    <strong>This is escaped content.</strong>
-]
-
-[$doc:
-    ## Documentation comment
-
-    This should highlight like `$md`, including `inline code`.
-
-    [codeblock, $code("moth"):
-        @docs/pages/home render as render_home
-        @docs/pages/about content as about_content
-    ]
-]
-
-[$todo:
-    This should look like ordinary Moth comment text.
-    It should still have a distinct todo template scope.
+    <strong>This is escaped content with [name].</strong>
 ]
 
 [$note:
-    This should also look like ordinary Moth comment text.
-    It should still have a distinct note template scope.
+    This is discarded template content with [balanced] brackets.
+]
+
+[codeblock, $code "moth":
+    @docs/pages/home render as render_home
+    sample = "[not a template]"
+    nested = [not_a_template]
+    io.line([: Hello, [name]])
+]
+
+[codeblock, $code "rust":
+    fn main() {
+        println!("Hello, world!");
+    }
 ]
 
 Literal delimiters use string insertion: ["[literal]"]

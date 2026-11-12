@@ -1,0 +1,30 @@
+-- Deprecated and invalid forms retained only for negative highlighting tests.
+
+export:
+    @core/math sin
+;
+
+$slot("title")
+$insert("title")
+[$children([: Prefix]): body]
+[codeblock, $code("moth"):
+    sample = 1
+]
+[$doc: documentation comment]
+[$todo: todo comment]
+[$insert($name): body]
+[if show: yes else: no]
+loop item in items:
+;
+
+[loop items |item|:
+    [break]
+    [continue]
+]
+count Int = 1
+ratio Float = 1.5
+bad0 Dec01 = 1
+bad1 Dec257 = 1
+bad2 Dec999 = 1
+@core/math {sin, cos}
+#[p: old root marker]

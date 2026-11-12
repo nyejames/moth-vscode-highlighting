@@ -1,0 +1,10 @@
+[$doc: old doc template]
+[$todo: old todo template]
+[codeblock, $code("moth"):
+    sample = 1
+]
+[if show: yes else: no]
+[loop items |item|:
+    [break]
+]
+#[p: old root marker]

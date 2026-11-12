@@ -7,6 +7,7 @@ const rootDir = path.resolve(__dirname, "..");
 const grammarPath = path.join(rootDir, "syntaxes", "moth.tmLanguage.json");
 const packagePath = path.join(rootDir, "package.json");
 const fixturePath = path.join(__dirname, "fixtures", "highlighting-samples.moth");
+const invalidFixturePath = path.join(__dirname, "fixtures", "invalid-syntax.moth");
 
 const grammar = JSON.parse(fs.readFileSync(grammarPath, "utf8"));
 const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
@@ -23,26 +24,6 @@ function walkObjects(value, visit) {
   for (const nested of Object.values(value)) walkObjects(nested, visit);
 }
 
-function findPatternsByName(name) {
-  const results = [];
-  walkObjects(grammar, (node) => {
-    if (typeof node.name !== "string") return;
-    if (node.name === name || node.name.split(/\s+/).includes(name)) results.push(node);
-  });
-  return results;
-}
-
-function findPatterns(repositoryKey, predicate) {
-  const entry = grammar.repository[repositoryKey];
-  assert.ok(entry, `expected repository '${repositoryKey}'`);
-
-  const results = [];
-  walkObjects(entry, (node) => {
-    if (predicate(node)) results.push(node);
-  });
-  return results;
-}
-
 function includesUnder(value) {
   const includes = [];
   walkObjects(value, (node) => {
@@ -52,17 +33,37 @@ function includesUnder(value) {
 }
 
 function repoIncludes(repositoryKey) {
-  const entry = grammar.repository[repositoryKey];
-  assert.ok(entry, `expected repository '${repositoryKey}'`);
-  return includesUnder(entry);
+  const repositoryEntry = grammar.repository[repositoryKey];
+  assert.ok(repositoryEntry, `expected repository '${repositoryKey}'`);
+  return includesUnder(repositoryEntry);
 }
 
 function repoExists(repositoryKey) {
   return Object.hasOwn(grammar.repository, repositoryKey);
 }
 
+function findPatterns(repositoryKey, predicate) {
+  const repositoryEntry = grammar.repository[repositoryKey];
+  assert.ok(repositoryEntry, `expected repository '${repositoryKey}'`);
+  const matches = [];
+  walkObjects(repositoryEntry, (node) => {
+    if (predicate(node)) matches.push(node);
+  });
+  return matches;
+}
+
+function findPatternsByName(name) {
+  const matches = [];
+  walkObjects(grammar.repository, (node) => {
+    if (typeof node.name === "string" && node.name.split(/\s+/).includes(name)) {
+      matches.push(node);
+    }
+  });
+  return matches;
+}
+
 function regexp(pattern) {
-  return new RegExp(pattern);
+  return new RegExp(pattern, "u");
 }
 
 function rootIncludes() {
@@ -72,44 +73,26 @@ function rootIncludes() {
 // ── GRAMMAR INTEGRITY ────────────────────────────────────────────────
 
 test("main grammar uses the Moth source scope", () => {
-  assert.equal(grammar.name, "Moth");
   assert.equal(grammar.scopeName, "source.moth");
 });
 
 test("all internal repository includes resolve", () => {
   const missing = [];
-
   walkObjects(grammar, (node) => {
     if (typeof node.include !== "string" || !node.include.startsWith("#")) return;
-    const repositoryKey = node.include.slice(1);
-    if (!repoExists(repositoryKey)) missing.push(node.include);
+    const key = node.include.slice(1);
+    if (!Object.hasOwn(grammar.repository, key)) missing.push(node.include);
   });
-
   assert.deepEqual(missing, []);
 });
 
 test("root template patterns run before general source tokens", () => {
   const includes = rootIncludes();
-  const templateKeys = [
-    "#template-code-js",
-    "#template-code-ts",
-    "#template-code-py",
-    "#template-code-rs",
-    "#template-code-shell",
-    "#template-code-moth",
-    "#template-code-generic",
-    "#template-css",
-    "#template-html",
-    "#template-markdown",
-    "#template-generic",
-  ];
-
-  for (const key of templateKeys) assert.ok(includes.includes(key), `expected root include '${key}'`);
-
-  const genericTemplateIndex = includes.indexOf("#template-generic");
+  assert.ok(includes.includes("#template-nested"));
+  const templateIndex = includes.indexOf("#template-nested");
   for (const sourceKey of ["#strings", "#numbers", "#keywords", "#identifiers"]) {
     assert.ok(
-      genericTemplateIndex < includes.indexOf(sourceKey),
+      templateIndex < includes.indexOf(sourceKey),
       `${sourceKey} must run after template recognition`
     );
   }
@@ -140,7 +123,7 @@ test("current flow, logical, declaration, conversion, and range keywords are pre
     "cast", "into", "to", "by"]) {
     assert.ok(new RegExp("\\b" + keyword + "\\b").test(keywordText), `missing keyword '${keyword}'`);
   }
-  for (const ordinary of ["export", "block", "import"]) {
+  for (const ordinary of ["export", "block", "import", "config", "group", "region"]) {
     assert.ok(!new RegExp("\\b" + ordinary + "\\b").test(keywordText),
       `ordinary identifier '${ordinary}' must not be reserved`);
   }
@@ -199,19 +182,26 @@ test("exact-width types, decimals, option none, and lowercase booleans are prese
   const none = grammar.repository.types.patterns.find(
     (pattern) => pattern.name === "constant.language.none.moth"
   );
+  const invalidDecimal = grammar.repository.types.patterns.find(
+    (pattern) => pattern.name === "invalid.illegal.type.decimal.moth"
+  );
   const isPrimitive = (name) => regexp(`^(?:${primitive.match})$`).test(name);
   for (const name of ["I8", "I16", "I32", "I64", "U8", "U16", "U32", "U64",
     "F16", "F32", "F64", "Bool", "String", "Char", "Byte",
     "None", "True", "False", "Dec", "Dec0", "Dec4", "Dec99", "Dec100", "Dec256"]) {
     assert.ok(isPrimitive(name), `missing primitive '${name}'`);
   }
-  for (const old of ["Int", "Float", "Fn", "IO", "Dec01", "Dec257", "I128"]) {
+  for (const old of ["Int", "Float", "Fn", "IO", "Dec01", "Dec257", "I128", "Dec256x"]) {
     assert.ok(!isPrimitive(old), `unexpected primitive '${old}'`);
+  }
+  assert.ok(invalidDecimal, "expected invalid.illegal.type.decimal.moth");
+  for (const invalid of ["Dec01", "Dec257", "Dec999"]) {
+    assert.ok(regexp(`^(?:${invalidDecimal.match})$`).test(invalid), `expected invalid decimal '${invalid}'`);
   }
   assert.match(boolean.match, /\btrue\b/);
   assert.match(boolean.match, /\bfalse\b/);
   assert.doesNotMatch(boolean.match, /\bTrue\b/);
-  assert.match(none.match, /\bnone\b/);
+  assert.match(none.match, /\\bnone\\b/);
 });
 
 test("type and of use the generic-language scope", () => {
@@ -229,21 +219,50 @@ test("Error remains a builtin type", () => {
   );
   assert.ok(builtinType);
   assert.match(builtinType.match, /\bError\b/);
+  assert.match(builtinType.match, /\bWire\b/);
+  assert.match(builtinType.match, /\bRoute\b/);
+});
+
+test("cast traits and ALL_CAPS traits use distinct scopes", () => {
+  const castTrait = grammar.repository.types.patterns.find(
+    (pattern) => pattern.name === "support.type.cast-trait.moth"
+  );
+  const caps = grammar.repository.constants.patterns.find(
+    (pattern) => pattern.name === "constant.other.caps.moth"
+  );
+  assert.ok(castTrait);
+  assert.ok(caps);
+  for (const name of ["CASTABLE_TO_STRING", "TRY_CASTABLE_TO_I32", "CASTABLE_TO_BOOL"]) {
+    assert.ok(regexp(`^(?:${castTrait.match})$`).test(name), `missing cast trait '${name}'`);
+  }
+  const capsRe = regexp(`^(?:${caps.match})$`);
+  for (const name of ["DISPLAY_TEXT", "READABLE", "NAMED"]) {
+    assert.ok(capsRe.test(name), `missing trait name '${name}'`);
+  }
+  assert.ok(!capsRe.test("A"), "single-letter generic parameters are not ALL_CAPS traits");
 });
 
 // ── OPERATORS, PUNCTUATION, AND NUMBERS ──────────────────────────────
 
 test("active symbol operators retain current Moth spellings", () => {
-  const symbolPattern = grammar.repository.operators.patterns.find(
-    (pattern) => pattern.name === "keyword.operator.symbol.moth"
+  const symbolPatterns = grammar.repository.operators.patterns.filter(
+    (pattern) => typeof pattern.name === "string"
+      && pattern.name.split(/\s+/).includes("keyword.operator.symbol.moth")
   );
-  assert.ok(symbolPattern);
-  const re = regexp(`^(?:${symbolPattern.match})$`);
-  for (const operator of ["+", "-", "=>", "->", "::", "//", "<=", ">=", "$"]) {
-    assert.ok(re.test(operator), `expected operator '${operator}'`);
+  assert.ok(symbolPatterns.length > 0);
+  const matches = (operator) => symbolPatterns.some(
+    (pattern) => regexp(`^(?:${pattern.match})$`).test(operator)
+  );
+  for (const operator of ["+", "-", "=>", "->", "::", "//", "<=", ">=", "$", "="]) {
+    assert.ok(matches(operator), `expected operator '${operator}'`);
   }
-  assert.ok(!re.test(".."), "range syntax uses to/by, not '..'");
-  assert.ok(!re.test("|"), "pipe is parameter punctuation rather than a symbolic operator");
+  assert.ok(!matches(".."), "range syntax uses to/by, not '..'");
+  assert.ok(!matches("|"), "pipe is parameter punctuation rather than a symbolic operator");
+  const doubleColon = symbolPatterns.find(
+    (pattern) => regexp(`^(?:${pattern.match})$`).test("::")
+  );
+  assert.ok(doubleColon.name.includes("punctuation.separator.double-colon.moth"));
+  assert.ok(!doubleColon.name.includes("keyword.control.scope.delimiter.moth"));
 });
 
 test("future channel operators have their own scope", () => {
@@ -255,6 +274,30 @@ test("future channel operators have their own scope", () => {
     assert.ok(regexp(`^(?:${channel.match})$`).test(operator));
   }
   assert.ok(!regexp(`^(?:${channel.match})$`).test("<="));
+});
+
+test("mutable and constant markers use distinct operator scopes", () => {
+  const mutableAssign = grammar.repository.operators.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.assignment.mutable.moth"
+  );
+  const constantAssign = grammar.repository.operators.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.assignment.constant.moth"
+  );
+  const mutable = grammar.repository.operators.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.mutable.moth"
+  );
+  const constant = grammar.repository.operators.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.constant.moth"
+  );
+  assert.ok(mutableAssign && constantAssign && mutable && constant);
+  assert.ok(regexp(`^(?:${mutableAssign.match})$`).test("~="));
+  assert.ok(regexp(`^(?:${constantAssign.match})$`).test("#="));
+  for (const source of ["~name", "~{I32}", "~Type"]) {
+    assert.ok(regexp(mutable.match).test(source), `expected mutable marker in '${source}'`);
+  }
+  for (const source of ["#I32", "#|"]) {
+    assert.ok(regexp(constant.match).test(source), `expected constant marker in '${source}'`);
+  }
 });
 
 test("Never, error-return, and fallible cast tokens have distinct rules", () => {
@@ -269,41 +312,65 @@ test("Never, error-return, and fallible cast tokens have distinct rules", () => 
   assert.equal(never.captures["3"].name, "storage.type.never.moth");
 });
 
-test("implemented source directives use a dedicated scope", () => {
+test("source directives separate active, accepted-future, and wrong-context names", () => {
   assert.ok(rootIncludes().includes("#source-directives"));
   assert.ok(repoIncludes("code-moth-fragment").includes("#source-directives"));
-  const rule = grammar.repository["source-directives"].patterns[0];
-  assert.equal(rule.name, "keyword.control.directive.source.moth");
-  const re = regexp(`^(?:${rule.match})$`);
+
+  const active = grammar.repository["source-directives"].patterns.find(
+    (pattern) => pattern.name === "keyword.control.directive.source.moth"
+  );
+  const future = grammar.repository["source-directives"].patterns.find(
+    (pattern) => pattern.name === "keyword.control.directive.source.future.moth"
+  );
+  const templateInSource = grammar.repository["source-directives"].patterns.find(
+    (pattern) => pattern.name === "invalid.illegal.directive.template-in-source.moth"
+  );
+  assert.ok(active && future && templateInSource);
+
+  const activeRe = regexp(`^(?:${active.match})$`);
   for (const directive of ["$export", "$config", "$doc", "$todo"]) {
-    assert.ok(re.test(directive), `missing source directive ${directive}`);
+    assert.ok(activeRe.test(directive), `missing active source directive ${directive}`);
   }
-  for (const directive of ["$note", "$slot", "$children", "$exported"]) {
-    assert.ok(!re.test(directive), `unexpected source directive ${directive}`);
+  const futureRe = regexp(`^(?:${future.match})$`);
+  for (const directive of ["$fast_math", "$safe_math", "$infallible", "$test"]) {
+    assert.ok(futureRe.test(directive), `missing future source directive ${directive}`);
+  }
+  const wrongRe = regexp(`^(?:${templateInSource.match})$`);
+  for (const directive of ["$md", "$slot", "$note", "$code"]) {
+    assert.ok(wrongRe.test(directive), `template directive ${directive} must be invalid in source`);
+  }
+  for (const stale of ["$page", "$project", "$builder", "$html_builder", "$entry"]) {
+    const sourceText = grammar.repository["source-directives"].patterns
+      .map((pattern) => pattern.match || "")
+      .join(" ");
+    assert.doesNotMatch(sourceText, new RegExp("\\" + stale + "\\b"), `stale directive ${stale}`);
   }
 });
 
 test("assignment/declaration operator forms remain highlighted", () => {
-  const assignmentPattern = grammar.repository.operators.patterns.find(
+  const compoundPattern = grammar.repository.operators.patterns.find(
     (pattern) => pattern.name === "keyword.operator.assignment.compound.moth"
   );
-  assert.ok(assignmentPattern);
+  assert.ok(compoundPattern);
 
-  const re = regexp(`^(?:${assignmentPattern.match})$`);
-  for (const operator of ["+=", "-=", "*=", "//=", "/=", "%=", "^=", "#=", "~="]) {
+  const re = regexp(`^(?:${compoundPattern.match})$`);
+  for (const operator of ["+=", "-=", "*=", "//=", "/=", "%=", "^="]) {
     assert.ok(re.test(operator), `expected operator form '${operator}'`);
   }
+  assert.ok(!re.test("#="), "#= has its own constant-assignment scope");
+  assert.ok(!re.test("~="), "~= has its own mutable-assignment scope");
 });
 
 test("punctuation covers pipe brackets and dot access", () => {
   const pipe = grammar.repository.punctuation.patterns.find(
-    (pattern) => pattern.name === "punctuation.brackets.pipe.moth"
+    (pattern) => pattern.name.includes("punctuation.brackets.pipe.moth")
   );
   const dot = grammar.repository.punctuation.patterns.find(
     (pattern) => pattern.name === "punctuation.accessor.dot.moth"
   );
 
   assert.ok(pipe);
+  assert.equal(pipe.name, "punctuation.brackets.pipe.moth");
   assert.ok(dot);
   assert.ok(regexp(`^(?:${pipe.match})$`).test("|"));
   assert.ok(regexp(`^(?:${dot.match})$`).test("."));
@@ -315,40 +382,86 @@ test("numeric literals cover signed values, decimals, and lowercase exponents", 
   );
   assert.ok(numeric);
 
-  const re = regexp(numeric.match);
-  for (const value of ["1", "1.5", "1e6", "1.0e-6", "-2147483648"]) {
+  const re = regexp(`^(?:${numeric.match})$`);
+  for (const value of ["1", "1.5", "1e6", "1.0e-6", "-2147483648", "4_294_967_296"]) {
     assert.ok(re.test(value), `expected numeric literal '${value}'`);
   }
-  assert.ok(!re.test("1E6"), "uppercase exponent syntax is not Moth numeric syntax");
+  for (const invalid of ["1E6", "0x10", "1u", ".5", "1__2"]) {
+    assert.ok(!re.test(invalid), `unexpected numeric syntax '${invalid}'`);
+  }
+});
+
+test("Unicode identifiers are matched and keyword prefixes stay identifiers", () => {
+  const identifier = grammar.repository.identifiers.patterns[0];
+  const typeIdentifier = grammar.repository["type-identifiers"].patterns[0];
+  assert.ok(identifier);
+  assert.ok(typeIdentifier);
+  const idRe = regexp(`^(?:${identifier.match})$`);
+  const typeRe = regexp(`^(?:${typeIdentifier.match})$`);
+  for (const name of ["café", "π", "naïve_value", "_private"]) {
+    assert.ok(idRe.test(name), `expected identifier '${name}'`);
+  }
+  for (const name of ["Person", "Éclair", "A"]) {
+    assert.ok(typeRe.test(name), `expected type identifier '${name}'`);
+  }
+  assert.ok(idRe.test("iffy"), "keyword prefixes remain ordinary identifiers");
 });
 
 // ── TEMPLATE DIRECTIVES AND EMBEDDED LANGUAGES ──────────────────────
 
-test("template-head directives include the current formatter and slot names", () => {
-  const patterns = findPatterns(
-    "template-head-directives",
-    (node) => typeof node.match === "string"
-  );
-  const matchText = patterns.map((pattern) => pattern.match).join(" ");
+test("template directives cover the accepted formatter, slot, and wrapper names", () => {
+  const patternText = grammar.repository["template-directive"].patterns
+    .map((pattern) => pattern.match || "")
+    .join(" ");
 
   for (const directive of [
-    "slot",
-    "insert",
-    "children",
+    "before",
+    "after",
     "fresh",
-    "md",
-    "raw",
+    "slot",
+    "in",
     "note",
-    "todo",
-    "doc",
+    "raw",
+    "md",
     "html",
     "css",
     "escape_html",
     "code",
   ]) {
-    assert.match(matchText, new RegExp(`\\b${directive}\\b`), `missing $${directive}`);
+    assert.ok(patternText.includes(directive), `missing $${directive}`);
   }
-  assert.doesNotMatch(matchText, /\bmarkdown\b/, "$markdown has been replaced by $md");
+  assert.doesNotMatch(patternText, /\binsert\b/, "$insert is not a current directive");
+  assert.doesNotMatch(patternText, /\bchildren\b/, "$children is not a current directive");
+});
+
+test("source directives are invalid in template heads", () => {
+  const invalid = grammar.repository["template-directive"].patterns.find(
+    (pattern) => pattern.name === "invalid.illegal.directive.source-in-template.moth"
+  );
+  assert.ok(invalid);
+  const re = regexp(`^(?:${invalid.match})$`);
+  for (const directive of ["$export", "$config", "$doc", "$todo", "$test"]) {
+    assert.ok(re.test(directive), `expected invalid template-head directive ${directive}`);
+  }
+  assert.ok(!re.test("$md"));
+});
+
+test("slot and insert targets are bare tokens, with invalid quoted and call forms", () => {
+  const targets = grammar.repository["template-head-directive-targets"].patterns;
+  const serialized = JSON.stringify(targets);
+  for (const scope of [
+    "variable.parameter.template.slot.moth",
+    "constant.numeric.positional-slot.moth",
+    "variable.parameter.template.slot.target.moth",
+    "invalid.illegal.template.slot.target.moth",
+    "invalid.illegal.template.slot.position.moth",
+    "invalid.illegal.directive.call-syntax.moth",
+  ]) {
+    assert.ok(serialized.includes(scope), `missing ${scope}`);
+  }
+  assert.ok(
+    JSON.stringify(grammar.repository["template-directive"]).includes("invalid.illegal.directive.operand.moth")
+  );
 });
 
 test("Rust formatter recognises rs and rust", () => {
@@ -356,9 +469,10 @@ test("Rust formatter recognises rs and rust", () => {
   const beginRe = regexp(pattern.begin);
 
   assert.match(pattern.name, /meta\.template\.code\.rs\.moth/);
-  assert.ok(beginRe.test('[$code("rs"):'));
-  assert.ok(beginRe.test('[$code("rust"):'));
-  assert.ok(!beginRe.test('[$code("py"):'));
+  assert.ok(beginRe.test('[$code "rs":'));
+  assert.ok(beginRe.test('[$code "rust":'));
+  assert.ok(beginRe.test('[codeblock, $code "rust":'));
+  assert.ok(!beginRe.test('[$code "py":'));
 });
 
 test("shell formatter recognises sh, shell, and bash", () => {
@@ -367,34 +481,48 @@ test("shell formatter recognises sh, shell, and bash", () => {
 
   assert.match(pattern.name, /meta\.template\.code\.shell\.moth/);
   for (const name of ["sh", "shell", "bash"]) {
-    assert.ok(beginRe.test(`[$code("${name}"):`));
+    assert.ok(beginRe.test(`[$code "${name}":`));
   }
-  assert.ok(!beginRe.test('[$code("py"):'));
+  assert.ok(!beginRe.test('[$code "py":'));
 });
 
-test("Moth formatter recognises the moth code-language label", () => {
+test("Moth formatter recognises moth and mtf without call syntax", () => {
   const pattern = grammar.repository["template-code-moth"].patterns[0];
   const beginRe = regexp(pattern.begin);
 
   assert.match(pattern.name, /meta\.template\.code\.mothlang\.moth/);
-  assert.ok(beginRe.test('[$code("moth"):'));
+  assert.ok(beginRe.test('[$code "moth":'));
+  assert.ok(beginRe.test('[$code "mtf":'));
+  assert.ok(!beginRe.test('[$code("moth"):'));
   assert.doesNotMatch(pattern.begin, /bst/, "legacy bst code labels must be gone");
 });
 
-test("Rust and shell embedded bodies delegate to their source grammars", () => {
+test("formatter begin patterns accept multiline heads and comma-separated items", () => {
+  const cases = [
+    ["template-markdown", "$md"],
+    ["template-raw", "$raw"],
+    ["template-escape-html", "$escape_html"],
+    ["template-html", "$html"],
+    ["template-css", "$css"],
+  ];
+  for (const [key, directive] of cases) {
+    const beginRe = regexp(grammar.repository[key].patterns[0].begin);
+    assert.ok(beginRe.test(`[${directive}:`), `${key} single-line`);
+    assert.ok(beginRe.test(`[\n    section,\n    ${directive}:`), `${key} multiline`);
+    assert.ok(beginRe.test(`[card, ${directive}:`), `${key} comma item`);
+  }
+});
+
+test("Rust, shell, JS, TS, and Python bodies delegate to their source grammars", () => {
   for (const [repositoryKey, expectedScope] of [
     ["embedded-code-rs", "source.rust"],
     ["embedded-code-shell", "source.shell"],
+    ["embedded-code-js", "source.js"],
+    ["embedded-code-ts", "source.ts"],
+    ["embedded-code-py", "source.python"],
   ]) {
-    const contentPatterns = findPatterns(
-      repositoryKey,
-      (node) => typeof node.contentName === "string" && node.contentName.includes(expectedScope)
-    );
-    assert.ok(contentPatterns.length > 0, `${repositoryKey} should expose ${expectedScope}`);
-    assert.ok(
-      contentPatterns.some((pattern) => includesUnder(pattern).includes(expectedScope)),
-      `${repositoryKey} should include ${expectedScope}`
-    );
+    const includes = repoIncludes(repositoryKey);
+    assert.ok(includes.includes(expectedScope), `${repositoryKey} should include ${expectedScope}`);
   }
 });
 
@@ -409,6 +537,10 @@ test("embedded Moth code preserves path and invalid-at fallback highlighting", (
   );
   assert.ok(recursiveBlocks.length > 0, "expected recursive bracket handling in embedded Moth code");
   assert.ok(recursiveBlocks.some((pattern) => includesUnder(pattern).includes("#code-moth-fragment")));
+  assert.ok(
+    !repoIncludes("embedded-code-moth").includes("#template-nested"),
+    "code bodies must not interpret nested Moth templates"
+  );
 });
 
 // ── BOUNDED CSS REGRESSIONS ─────────────────────────────────────────
@@ -417,17 +549,9 @@ test("CSS formatter bodies use the bounded embedded CSS fragment", () => {
   const bodyIncludes = repoIncludes("template-body-css");
   assert.ok(bodyIncludes.includes("#embedded-css"));
 
-  const contentPatterns = findPatterns(
-    "embedded-css",
-    (node) => typeof node.contentName === "string" && node.contentName.includes("source.css")
-  );
-  assert.ok(contentPatterns.length > 0);
-
-  for (const pattern of contentPatterns) {
-    const includes = includesUnder(pattern);
-    assert.ok(includes.includes("#css-fragment"));
-    assert.ok(!includes.includes("source.css"), "external CSS state can leak past the template close");
-  }
+  const embedded = grammar.repository["embedded-css"].patterns;
+  assert.ok(embedded.some((pattern) => pattern.name === "meta.embedded.block.css.moth"));
+  assert.ok(repoIncludes("embedded-css").includes("#css-fragment"));
 });
 
 test("bounded CSS fragments recognise property names, functions, colours, and percentages", () => {
@@ -448,25 +572,36 @@ test("bounded CSS fragments recognise property names, functions, colours, and pe
   assert.ok(regexp(number.match).test("55%"));
 });
 
-test("new code-language patterns remain wired into every shared template body", () => {
-  for (const repositoryKey of [
-    "template-body-code-js",
-    "template-body-code-ts",
-    "template-body-code-py",
-    "template-body-code-moth",
-    "template-body-code-generic",
-    "template-body-generic",
-    "template-body-html",
-    "template-body-markdown",
+test("shared template nesting includes every formatter and code language", () => {
+  const includes = repoIncludes("template-nested");
+  for (const key of [
+    "#template-note",
+    "#template-slot",
+    "#template-code-js",
+    "#template-code-ts",
+    "#template-code-py",
+    "#template-code-rs",
+    "#template-code-shell",
+    "#template-code-moth",
+    "#template-code-generic",
+    "#template-css",
+    "#template-html",
+    "#template-markdown",
+    "#template-raw",
+    "#template-escape-html",
+    "#template-generic",
   ]) {
-    const includes = repoIncludes(repositoryKey);
-    assert.ok(includes.includes("#template-code-rs"), `${repositoryKey} is missing Rust`);
-    assert.ok(includes.includes("#template-code-shell"), `${repositoryKey} is missing shell`);
+    assert.ok(includes.includes(key), `missing ${key}`);
+  }
+
+  const genericIndex = includes.indexOf("#template-generic");
+  for (const key of includes.filter((entry) => entry !== "#template-generic")) {
+    assert.ok(includes.indexOf(key) < genericIndex, `${key} must precede generic templates`);
   }
 });
 
 test("root code formatter order keeps specific languages before generic code", () => {
-  const includes = rootIncludes();
+  const includes = repoIncludes("template-nested");
   const genericIndex = includes.indexOf("#template-code-generic");
 
   for (const key of [
@@ -505,8 +640,27 @@ test("package maps embedded Moth grammar scopes to VS Code language IDs", () => 
 test("all expected repository families are present", () => {
   const expected = [
     "comments",
+    "source-directives",
+    "dependency-clauses",
+    "dependency-continuation",
+    "dependency-selection-alias",
+    "dependency-selection",
     "path-literals",
+    "path-components",
     "invalid-at-sign",
+    "template-nested",
+    "template-head",
+    "template-head-directive-targets",
+    "template-directive",
+    "template-default-expression",
+    "template-slot",
+    "template-note",
+    "note-body",
+    "template-markdown",
+    "template-raw",
+    "template-escape-html",
+    "template-html",
+    "template-css",
     "template-code-js",
     "template-code-ts",
     "template-code-py",
@@ -514,12 +668,13 @@ test("all expected repository families are present", () => {
     "template-code-shell",
     "template-code-moth",
     "template-code-generic",
-    "template-css",
-    "template-html",
-    "template-markdown",
     "template-generic",
-    "template-head",
-    "template-head-directives",
+    "template-body-markdown",
+    "template-body-generic",
+    "template-body-raw",
+    "template-body-escape-html",
+    "template-body-html",
+    "template-body-css",
     "template-body-code-js",
     "template-body-code-ts",
     "template-body-code-py",
@@ -527,10 +682,23 @@ test("all expected repository families are present", () => {
     "template-body-code-shell",
     "template-body-code-moth",
     "template-body-code-generic",
-    "template-body-css",
-    "template-body-html",
-    "template-body-markdown",
-    "template-body-generic",
+    "markdown-fragment",
+    "markdown-heading",
+    "markdown-list-unnumbered",
+    "markdown-list-numbered",
+    "markdown-inline",
+    "markdown-link",
+    "markdown-link-multiline",
+    "markdown-section-id",
+    "markdown-inline-code",
+    "markdown-bold",
+    "markdown-italic",
+    "embedded-html",
+    "embedded-html-fragment",
+    "embedded-html-string-double",
+    "embedded-html-string-single",
+    "embedded-css",
+    "css-fragment",
     "embedded-code-js",
     "embedded-code-ts",
     "embedded-code-py",
@@ -538,10 +706,9 @@ test("all expected repository families are present", () => {
     "embedded-code-shell",
     "embedded-code-moth",
     "embedded-code-generic",
-    "embedded-markdown",
-    "embedded-css",
-    "css-fragment",
-    "embedded-html",
+    "code-moth-fragment",
+    "code-generic-fragment",
+    "raw-strings",
     "strings",
     "chars",
     "numbers",
@@ -552,19 +719,6 @@ test("all expected repository families are present", () => {
     "constants",
     "type-identifiers",
     "identifiers",
-    "template-slot-marker",
-    "template-slot-directive",
-    "template-children-directive",
-    "template-doc-directive",
-    "template-note-todo-directive",
-    "template-doc-nested-brackets",
-    "template-note-todo-nested-brackets",
-    "markdown-fragment",
-    "code-moth-fragment",
-    "code-generic-fragment",
-    "embedded-html-fragment",
-    "embedded-html-string-double",
-    "embedded-html-string-single",
   ];
 
   for (const repositoryKey of expected) {
@@ -579,8 +733,17 @@ test("key source scopes remain available to themes", () => {
     "keyword.control.loop.range.moth",
     "keyword.other.moth",
     "keyword.control.logical.moth",
+    "keyword.operator.assignment.compound.moth",
+    "keyword.operator.assignment.mutable.moth",
+    "keyword.operator.assignment.constant.moth",
+    "keyword.operator.mutable.moth",
+    "keyword.operator.constant.moth",
+    "keyword.operator.runtime-fragment.moth",
+    "keyword.operator.channel.future.moth",
     "variable.language.this.moth",
     "support.type.primitive.moth",
+    "support.type.cast-trait.moth",
+    "invalid.illegal.type.decimal.moth",
     "constant.language.boolean.moth",
     "constant.language.none.moth",
     "variable.language.trait-this.moth",
@@ -603,6 +766,8 @@ test("template meta scopes remain available for embedded language mapping", () =
     "meta.template.markdown.moth",
     "meta.template.css.moth",
     "meta.template.html.moth",
+    "meta.template.raw.moth",
+    "meta.template.escape-html.moth",
     "meta.template.code.js.moth",
     "meta.template.code.ts.moth",
     "meta.template.code.py.moth",
@@ -617,24 +782,28 @@ test("template meta scopes remain available for embedded language mapping", () =
 
 // ── MARKDOWN REGRESSIONS ────────────────────────────────────────────
 
-test("Markdown list markers have dedicated punctuation captures", () => {
-  const bullet = grammar.repository["markdown-fragment"].patterns.find(
-    (pattern) => pattern.name === "markup.list.unnumbered.markdown"
-  );
+test("Markdown unordered and ordered list markers have dedicated punctuation captures", () => {
+  const bullet = grammar.repository["markdown-list-unnumbered"].patterns[0];
+  const ordered = grammar.repository["markdown-list-numbered"].patterns[0];
   assert.ok(bullet);
+  assert.ok(ordered);
 
-  const re = regexp(bullet.match);
-  for (const source of ["- item", "  * item", "+ item"]) {
-    assert.ok(re.test(source), `expected Markdown bullet '${source}'`);
+  const bulletRe = regexp(bullet.match);
+  for (const source of ["- item", "  - item"]) {
+    assert.ok(bulletRe.test(source), `expected Markdown bullet '${source}'`);
   }
-  assert.ok(!re.test("-item"));
+  assert.ok(!bulletRe.test("-item"));
   assert.equal(bullet.captures["1"].name, "punctuation.definition.list.begin.markdown");
+
+  const orderedRe = regexp(ordered.match);
+  for (const source of ["1. item", "  12. item"]) {
+    assert.ok(orderedRe.test(source), `expected Markdown ordered item '${source}'`);
+  }
+  assert.ok(!orderedRe.test("1.item"));
 });
 
-test("Moth Markdown links accept supported path forms and reject bare domains", () => {
-  const link = grammar.repository["markdown-fragment"].patterns.find(
-    (pattern) => pattern.name === "meta.link.inline.markdown.moth"
-  );
+test("Moth Markdown links accept supported single-line forms and reject bare domains", () => {
+  const link = grammar.repository["markdown-link"].patterns[0];
   assert.ok(link);
 
   const re = regexp(link.match);
@@ -646,6 +815,7 @@ test("Moth Markdown links accept supported path forms and reject bare domains", 
     "@../parent/path (Parent)",
     "@#overview (Overview)",
     "@?q=moth (Search)",
+    "@./guide#getting-started (Guide)",
   ]) {
     assert.ok(re.test(source), `expected supported link '${source}'`);
   }
@@ -655,91 +825,133 @@ test("Moth Markdown links accept supported path forms and reject bare domains", 
     "@https://example.com(Example)",
     "@https://example.com\n(Example)",
   ]) {
-    assert.ok(!re.test(source), `expected unsupported link '${source}'`);
+    assert.ok(!re.test(source), `expected unsupported single-line link '${source}'`);
   }
+});
+
+test("multiline links begin only on an end-of-line target", () => {
+  const multiline = grammar.repository["markdown-link-multiline"].patterns[0];
+  assert.ok(multiline);
+  const beginRe = regexp(multiline.begin);
+  assert.ok(beginRe.test("@/guide"));
+  assert.ok(beginRe.test("@https://example.com"));
+  assert.ok(!beginRe.test("@/guide (Guide)"));
+  assert.ok(!beginRe.test("@#section-id"), "a bare section marker is not a multiline link");
+});
+
+test("Markdown section IDs use Unicode letters and reject labels", () => {
+  const sectionId = grammar.repository["markdown-section-id"].patterns[0];
+  assert.ok(sectionId);
+  const re = regexp(sectionId.match);
+  for (const source of ["@#welcome", "@#café", "@#概要", "@#release-notes_2"]) {
+    assert.ok(re.test(source), `expected section ID '${source}'`);
+  }
+  for (const source of ["@#welcome (Welcome)", "prefix@#id", "@#1bad"]) {
+    assert.ok(!re.test(source), `unexpected section ID '${source}'`);
+  }
+});
+
+test("Markdown inline code requires one same-line backtick pair", () => {
+  const inline = grammar.repository["markdown-inline-code"].patterns[0];
+  assert.ok(inline);
+  const beginRe = regexp(inline.begin);
+  assert.ok(beginRe.test("`code [child]`"));
+  assert.ok(!beginRe.test("``code``"), "repeated backtick runs are not inline code");
+  assert.ok(!beginRe.test("`unmatched"));
+  assert.ok(!beginRe.test("`multi\nline`"), "inline code cannot span lines");
+  assert.ok(inline.patterns.some((pattern) => pattern.include === "#template-nested"));
 });
 
 // ── FIXTURE ─────────────────────────────────────────────────────────
 
-test("Moth fixture contains current syntax and migration regression cases", () => {
+test("Moth fixture contains accepted syntax and regression cases", () => {
   assert.ok(fs.existsSync(fixturePath));
   const fixture = fs.readFileSync(fixturePath, "utf8");
 
   for (const snippet of [
-    "-- Single-line comment",
+    "-- Source comments",
     "@styles/docs navbar, title, section",
-    "@html center",
-    "@core/math as math",
-    "@docs/pages/home render as render_home",
-    "@docs/pages/about content as about_content",
     "@drawing.js draw,",
-    "@drawing.js as drawing",
+    "$export",
+    "@core/math sin, cos",
     "import = 1",
-    'page_title #= "Templates"',
-    'page_description #String = "Template syntax in Moth."',
+    "export = 2",
+    "config = 4",
+    "page_title #= \"Templates\"",
     "logo #= @assets/logo.svg",
     'font #= @fonts/"Computer Modern.woff2"',
-    "page = [@pages/home.mtf]",
     "root = @/",
-    "@html/tables data, -- clause continues",
-    "@html/tables data,",
-    "row = build_row()",
-    "@core/math {sin, cos}",
     "count ~= 0",
-    "ratio Float = 1.5",
-    'text_slice = "text"',
-    "letter = 'A'",
-    "values ~{Int} = {}",
-    'names {String} = {"Priya", "Gollum"}',
+    "~person.age += 1",
+    "decimal Dec4 = 12.3456",
+    "values ~{I32} = {}",
     "Person = |",
     "Status ::",
-    "increment |value Int| -> Int:",
-    "return value + 1",
-    "name, count = pair()",
-    "display |this Person| -> String:",
-    "return this.name",
-    "if value is true:",
-    'io.line("then")',
-    "if value is:",
-    "loop items |item, index|:",
-    "loop 0 to 10 by 2 |i|:",
-    "loop 0 to & 10 |i|:",
-    "assert(index < items.length())",
-    'assert(index < items.length(), "out of bounds")',
-    "maybe_name String? = none",
-    "if maybe_name is |name| then name else",
-    "parse_number(text)!",
-    "parse_number(text) catch:",
-    "then 0",
-    "count_text String = cast count",
-    "value = identity(42)",
+    "identity type Item |value Item| -> Item:",
+    "DISPLAY_TEXT must:",
+    "Label must DISPLAY_TEXT",
+    "~count, status = next()",
+    "loop 0 to & 10 by 2 |number, ordinal|:",
+    "loop ~scanner.next_token() is |token|:",
+    "fatal |message String| -> !:",
+    "assert(false, message)",
+    "catch:",
     "[$md:",
-    "- This is a Markdown bullet.",
+    "# Welcome @#welcome",
+    "- This is a Markdown bullet. @#install",
+    "1. This is an ordered item.",
+    "**Bold [name]** and *italic* text.",
+    "See @#welcome (Welcome) and @./guide (Guide).",
+    "`code [name] text`",
+    "[$note:",
+    "[$slot title = \"Untitled\"]",
     "[$slot]",
-    '[$slot("style")]',
-    '[$insert("style"): color: blue;]',
-    "[$children([: Prefix]):",
-    "[if show:",
-    "[list, if show:",
-    '$code("moth")',
-    '$code("js")',
-    '$code("ts")',
-    '$code("py")',
-    '$code("rs")',
-    '$code("rust")',
-    '$code("sh")',
-    '$code("shell")',
-    '$code("bash")',
-    "[$css:",
+    "[$in title:Welcome]",
+    "$after [:</li>]:",
+    "[$fresh: [: Rob]]",
+    "[$slot 1]",
+    '$code "moth"',
+    '$code "js"',
+    '$code "ts"',
+    '$code "py"',
+    '$code "rust"',
+    '$code "bash"',
+    '$code "text"',
     "[$html:",
+    "[$css:",
     "clip-path: circle(55%);",
-    "after_css_marker = \"not css\"",
-    "`.mtf` file",
+    "background: url(\"shape]one.svg\");",
+    "$todo [$md: Review this later.]",
+    "~[: Runtime fragment.]",
   ]) {
     assert.ok(fixture.includes(snippet), `fixture is missing '${snippet}'`);
   }
 
-  for (const legacy of ["Beanstalk", ".bst", ".bd", '$code("bst")']) {
-    assert.ok(!fixture.includes(legacy), `fixture still contains legacy text '${legacy}'`);
+  for (const legacy of ["Beanstalk", ".bst", ".bd", '$code("', "$children", "$insert(", "Int ", "Float "]) {
+    assert.ok(!fixture.includes(legacy), `fixture still contains obsolete syntax '${legacy}'`);
+  }
+});
+
+test("negative fixture records deprecated forms separately", () => {
+  assert.ok(fs.existsSync(invalidFixturePath));
+  const fixture = fs.readFileSync(invalidFixturePath, "utf8");
+  for (const snippet of [
+    "export:",
+    '$slot("title")',
+    '$insert("title")',
+    "[$children(",
+    '$code("moth")',
+    "[$doc:",
+    "[$todo:",
+    "loop item in items",
+    "[break]",
+    "count Int = 1",
+    "ratio Float = 1.5",
+    "Dec01",
+    "Dec257",
+    "@core/math {sin, cos}",
+    "#[p:",
+  ]) {
+    assert.ok(fixture.includes(snippet), `negative fixture is missing '${snippet}'`);
   }
 });

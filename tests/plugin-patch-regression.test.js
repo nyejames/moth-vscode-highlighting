@@ -45,10 +45,11 @@ const mothConfig = readJson("language-configuration.json");
 const mtfConfig = readJson("mtf-language-configuration.json");
 const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
 const mtfGrammar = readJson("syntaxes/mtf.tmLanguage.json");
-const commentGrammar = readJson("syntaxes/moth-comment-directives.tmLanguage.json");
 
 const mothFixturePath = path.join(__dirname, "fixtures", "highlighting-samples.moth");
 const mtfFixturePath = path.join(__dirname, "fixtures", "highlighting-samples.mtf");
+const invalidMothFixturePath = path.join(__dirname, "fixtures", "invalid-syntax.moth");
+const invalidMtfFixturePath = path.join(__dirname, "fixtures", "invalid-syntax.mtf");
 
 // ── MANIFEST INTEGRITY ───────────────────────────────────────────────
 
@@ -114,6 +115,19 @@ test("Moth source and Moth Template files use different comment behaviour", () =
   assert.deepEqual(mtfConfig.brackets, mothConfig.brackets);
   assert.deepEqual(mtfConfig.autoClosingPairs, mothConfig.autoClosingPairs);
   assert.deepEqual(mtfConfig.surroundingPairs, mothConfig.surroundingPairs);
+  for (const [label, config] of [
+    ["moth", mothConfig],
+    ["mtf", mtfConfig],
+  ]) {
+    assert.ok(
+      !config.brackets.some(([open, close]) => open === ":" && close === ";"),
+      `${label} must not pair : with ; outside bracket colourisation`
+    );
+  }
+  assert.ok(
+    mothConfig.autoClosingPairs.some((pair) => pair.open === "|" && pair.close === "|"),
+    "pipe auto-closing must be preserved"
+  );
 });
 
 test("the MTF grammar is bound to the mtf language and source.mtf scope", () => {
@@ -125,8 +139,23 @@ test("the MTF grammar is bound to the mtf language and source.mtf scope", () => 
   assert.equal(contribution.embeddedLanguages["meta.embedded.block.code.mothlang.moth"], "moth");
 });
 
-test("internal repository includes resolve in all migration support grammars", () => {
-  for (const grammar of [mtfGrammar, mothGrammar, commentGrammar]) {
+test("obsolete comment-directive injection grammar is removed", () => {
+  const contribution = pkg.contributes.grammars.find(
+    (entry) => entry.scopeName === "source.moth.comment-directives"
+  );
+  assert.ok(!contribution, "comment-directive injection grammar must not be contributed");
+  assert.ok(
+    !pkg.files.includes("syntaxes/moth-comment-directives.tmLanguage.json"),
+    "comment-directive grammar must not be packaged"
+  );
+  assert.ok(
+    !fs.existsSync(path.join(rootDir, "syntaxes/moth-comment-directives.tmLanguage.json")),
+    "comment-directive grammar file must not exist"
+  );
+});
+
+test("internal repository includes resolve in all shipped grammars", () => {
+  for (const grammar of [mtfGrammar, mothGrammar]) {
     const missing = [];
     walkObjects(grammar, (node) => {
       if (typeof node.include !== "string" || !node.include.startsWith("#")) return;
@@ -141,7 +170,6 @@ test("internal repository includes resolve in all migration support grammars", (
 // ── DEPENDENCY CLAUSES ───────────────────────────────────────────────
 
 test("dependency clauses are integrated into the main Moth grammar", () => {
-  const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
   assert.ok(
     Object.hasOwn(mothGrammar.repository, "dependency-clauses"),
     "expected dependency-clauses repository entry in main grammar"
@@ -175,7 +203,6 @@ test("no separate dependency injection grammar is packaged", () => {
 });
 
 test("dependency clause scope contract uses required scope families", () => {
-  const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
   const scopes = new Set();
   function walk(v) {
     if (!v || typeof v !== "object") return;
@@ -200,9 +227,10 @@ test("dependency clause scope contract uses required scope families", () => {
   for (const required of [
     "meta.dependency-clause.moth",
     "punctuation.definition.path.begin.moth",
-    "entity.name.namespace.moth",
+    "entity.name.path.segment.moth",
+    "entity.name.module.moth",
     "keyword.other.alias.moth",
-    "entity.name.namespace.alias.moth",
+    "variable.other.namespace.alias.moth",
     "variable.other.dependency.selection.moth",
     "variable.other.dependency.alias.moth",
     "punctuation.separator.comma.moth",
@@ -212,40 +240,31 @@ test("dependency clause scope contract uses required scope families", () => {
 });
 
 test("import is absent from keyword patterns", () => {
-  const mothGrammar = readJson("syntaxes/moth.tmLanguage.json");
   const keywordText = mothGrammar.repository.keywords.patterns
     .map((p) => p.match || "")
     .join(" ");
   assert.doesNotMatch(keywordText, /\bimport\b/);
 });
 
-test("no old import scope survives in any grammar", () => {
+test("no old import or export-block syntax survives in any grammar", () => {
   for (const relPath of [
     "syntaxes/moth.tmLanguage.json",
     "syntaxes/mtf.tmLanguage.json",
-    "syntaxes/moth-comment-directives.tmLanguage.json",
   ]) {
     const text = fs.readFileSync(path.join(rootDir, relPath), "utf8");
-    assert.ok(
-      !text.includes("keyword.control.import.moth"),
-      `${relPath} still contains keyword.control.import.moth`
-    );
-    assert.ok(
-      !text.includes("meta.path.import.moth"),
-      `${relPath} still contains meta.path.import.moth`
-    );
-    assert.ok(
-      !text.includes("entity.name.import.symbol.moth"),
-      `${relPath} still contains entity.name.import.symbol.moth`
-    );
-    assert.ok(
-      !text.includes("source.moth.import-groups"),
-      `${relPath} still contains source.moth.import-groups`
-    );
+    for (const forbidden of [
+      "keyword.control.import.moth",
+      "meta.path.import.moth",
+      "entity.name.import.symbol.moth",
+      "source.moth.import-groups",
+      "export:",
+    ]) {
+      assert.ok(!text.includes(forbidden), `${relPath} still contains ${forbidden}`);
+    }
   }
 });
 
-test("removed import-group grammar file does not exist", () => {
+test("removed grammar files do not exist", () => {
   assert.ok(
     !fs.existsSync(path.join(rootDir, "syntaxes/moth-import-groups.tmLanguage.json")),
     "old import-group grammar file must not exist"
@@ -260,149 +279,75 @@ test("removed import-group grammar file does not exist", () => {
 
 test("Moth Template files start directly in the implicit Markdown body", () => {
   assert.equal(mtfGrammar.scopeName, "source.mtf");
-  assert.deepEqual(mtfGrammar.patterns, [{ include: "#mtf-markdown-body" }]);
+  assert.deepEqual(mtfGrammar.patterns, [{ include: "#mtf-implicit-body" }]);
 
-  const includes = repoIncludes(mtfGrammar, "mtf-markdown-body");
-  for (const required of [
-    "#mtf-template-markdown",
-    "#mtf-template-explicit-generic",
-    "source.moth#template-code-moth",
-    "source.moth#template-css",
-    "source.moth#template-html",
-    "source.moth#template-markdown",
-    "source.moth#template-generic",
-    "source.moth#embedded-markdown",
-  ]) {
-    assert.ok(includes.includes(required), `expected '${required}' in the .mtf body stack`);
-  }
+  const implicitIncludes = repoIncludes(mtfGrammar, "mtf-implicit-body");
+  assert.ok(implicitIncludes.includes("#mtf-markdown-body"));
+  assert.ok(!implicitIncludes.includes("source.moth#comments"), "-- is body text in .mtf files");
+  assert.ok(!implicitIncludes.includes("source.moth#escapes"), "backslashes are body text in .mtf files");
 
-  assert.ok(!includes.includes("source.moth#template-body-markdown"), ".mtf has no ':' opener");
-  assert.ok(!includes.includes("source.moth#comments"), "-- is body text in .mtf files");
-  assert.ok(!includes.includes("source.moth#escapes"), "backslashes are body text in .mtf files");
+  const bodyIncludes = repoIncludes(mtfGrammar, "mtf-markdown-body");
+  assert.ok(bodyIncludes.includes("source.moth#markdown-fragment"));
+  assert.ok(bodyIncludes.includes("#mtf-template-children"));
 });
 
 test("directive-free nested MTF templates default to Markdown", () => {
-  const pattern = mtfGrammar.repository["mtf-template-markdown"].patterns[0];
+  const pattern = mtfGrammar.repository["mtf-template-default"].patterns[0];
   const beginRe = new RegExp(pattern.begin);
 
-  for (const source of ["[p:", "[p,\n:", "[$md:", "[p,\n$md:"]) {
+  for (const source of ["[p:", "[p,\n:", "[\n    section,\n    p:"]) {
     assert.ok(beginRe.test(source), `expected Markdown-default template: ${JSON.stringify(source)}`);
   }
 
-  for (const directive of [
-    "$raw",
-    "$fresh",
-    "$html",
-    '$code("moth")',
-    "$css",
-    "$escape_html",
-    "$children",
-    "$doc",
-    "$note",
-    "$todo",
+  const children = repoIncludes(mtfGrammar, "mtf-template-children");
+  const defaultIndex = children.indexOf("#mtf-template-default");
+  for (const include of [
+    "#mtf-template-markdown",
+    "#mtf-template-raw",
+    "#mtf-template-html",
+    "#mtf-template-escape-html",
+    "source.moth#template-note",
+    "source.moth#template-slot",
+    "source.moth#template-code-moth",
+    "source.moth#template-css",
   ]) {
-    assert.ok(
-      !beginRe.test(`[p, ${directive}:`),
-      `${directive} must not be classified as the implicit Markdown default`
-    );
+    assert.ok(children.indexOf(include) < defaultIndex, `${include} must precede the MTF default`);
   }
 });
 
-test("explicit non-Markdown formatter heads use the generic MTF body stack", () => {
-  const pattern = mtfGrammar.repository["mtf-template-explicit-generic"].patterns[0];
-  const beginRe = new RegExp(pattern.begin);
-
-  for (const source of [
-    "[p, $raw:",
-    "[p,\n$raw:",
-    "[p, $fresh:",
-    "[p, $escape_html:",
-    "[p, $children:",
-  ]) {
-    assert.ok(beginRe.test(source), `expected explicit generic MTF body: ${JSON.stringify(source)}`);
+test("explicit or structural MTF templates keep their own grammar", () => {
+  const classes = [
+    ["mtf-template-markdown", "$md"],
+    ["mtf-template-raw", "$raw"],
+    ["mtf-template-html", "$html"],
+    ["mtf-template-escape-html", "$escape_html"],
+  ];
+  for (const [key, directive] of classes) {
+    const beginRe = new RegExp(mtfGrammar.repository[key].patterns[0].begin);
+    assert.ok(beginRe.test(`[p, ${directive}:`), `${key} should own ${directive}`);
   }
 
-  for (const source of [
-    "[p, $md:",
-    '[p, $code("moth"):',
-    "[p, $css:",
-    "[p, $html:",
-    "[p, $doc:",
-    "[p, $note:",
-    "[p, $todo:",
+  const children = repoIncludes(mtfGrammar, "mtf-template-children");
+  for (const include of [
+    "source.moth#template-note",
+    "source.moth#template-slot",
+    "source.moth#template-code-moth",
+    "source.moth#template-css",
+    "#mtf-template-default",
   ]) {
-    assert.ok(!beginRe.test(source), `special directive must keep its own grammar: ${source}`);
+    assert.ok(children.includes(include), `expected '${include}' in the .mtf child stack`);
   }
 });
 
 test("nested MTF Markdown bodies recurse without restoring Moth comments or escapes", () => {
   const includes = repoIncludes(mtfGrammar, "mtf-template-body-markdown");
-  assert.ok(includes.includes("#mtf-template-markdown"));
-  assert.ok(includes.includes("#mtf-template-explicit-generic"));
-  assert.ok(includes.includes("source.moth#embedded-markdown"));
+  assert.ok(includes.includes("#mtf-markdown-body"));
   assert.ok(!includes.includes("source.moth#comments"));
   assert.ok(!includes.includes("source.moth#escapes"));
 
-  const genericIncludes = repoIncludes(mtfGrammar, "mtf-template-body-generic");
-  assert.ok(genericIncludes.includes("#mtf-template-markdown"));
-  assert.ok(genericIncludes.includes("#mtf-template-explicit-generic"));
-  assert.ok(!genericIncludes.includes("source.moth#embedded-markdown"));
-});
-
-// ── COMMENT DIRECTIVES ───────────────────────────────────────────────
-
-test("package injects comment directives into source.moth and source.mtf", () => {
-  const contribution = pkg.contributes.grammars.find(
-    (entry) => entry.scopeName === "source.moth.comment-directives"
-  );
-
-  assert.ok(contribution, "expected the comment-directive injection grammar");
-  assert.deepEqual(new Set(contribution.injectTo), new Set(["source.moth", "source.mtf"]));
-  assert.equal(contribution.path, "./syntaxes/moth-comment-directives.tmLanguage.json");
-  assert.match(commentGrammar.injectionSelector, /source\.moth/);
-  assert.match(commentGrammar.injectionSelector, /source\.mtf/);
-});
-
-test("todo, note, and doc directives accept single-line and multiline heads", () => {
-  for (const [repositoryKey, directive] of [
-    ["template-todo-comment", "todo"],
-    ["template-note-comment", "note"],
-    ["template-doc-comment", "doc"],
-  ]) {
-    const pattern = commentGrammar.repository[repositoryKey].patterns[0];
-    const beginRe = new RegExp(pattern.begin);
-
-    assert.ok(beginRe.test(`[$${directive}:`));
-    assert.ok(beginRe.test(`[\n    section,\n    $${directive}:`));
-    assert.ok(!beginRe.test(`[p, $${directive}_later:`));
-  }
-});
-
-test("todo and note keep distinct template scopes with comment-like bodies", () => {
-  const todoPattern = commentGrammar.repository["template-todo-comment"].patterns[0];
-  const notePattern = commentGrammar.repository["template-note-comment"].patterns[0];
-  const bodyPattern = commentGrammar.repository["template-comment-body"].patterns[0];
-
-  assert.match(todoPattern.name, /meta\.template\.comment\.todo\.moth/);
-  assert.match(notePattern.name, /meta\.template\.comment\.note\.moth/);
-  assert.notEqual(todoPattern.name, notePattern.name);
-  assert.match(bodyPattern.contentName, /comment\.line\.double-dash\.moth/);
-  assert.match(bodyPattern.contentName, /comment\.block\.template\.comment\.moth/);
-});
-
-test("doc uses the Markdown-template body stack", () => {
-  const docPattern = commentGrammar.repository["template-doc-comment"].patterns[0];
-  assert.match(docPattern.name, /meta\.template\.markdown\.moth/);
-
-  const includes = repoIncludes(commentGrammar, "template-doc-body");
-  for (const required of [
-    "source.moth#embedded-markdown",
-    "source.moth#template-generic",
-    "source.moth#template-code-moth",
-  ]) {
-    assert.ok(includes.includes(required), `expected '${required}' in $doc body`);
-  }
-  assert.ok(!includes.includes("source.moth#escapes"));
+  const rawIncludes = repoIncludes(mtfGrammar, "mtf-template-body-raw");
+  assert.ok(rawIncludes.includes("#mtf-template-children"));
+  assert.ok(!rawIncludes.includes("source.moth#markdown-fragment"));
 });
 
 // ── FIXTURES AND MIGRATION HYGIENE ──────────────────────────────────
@@ -410,6 +355,8 @@ test("doc uses the Markdown-template body stack", () => {
 test("fixtures contain the cases needed for manual token inspection", () => {
   assert.ok(fs.existsSync(mothFixturePath), "expected the .moth fixture");
   assert.ok(fs.existsSync(mtfFixturePath), "expected the .mtf fixture");
+  assert.ok(fs.existsSync(invalidMothFixturePath), "expected the negative .moth fixture");
+  assert.ok(fs.existsSync(invalidMtfFixturePath), "expected the negative .mtf fixture");
 
   const mothFixture = fs.readFileSync(mothFixturePath, "utf8");
   const mtfFixture = fs.readFileSync(mtfFixturePath, "utf8");
@@ -418,20 +365,14 @@ test("fixtures contain the cases needed for manual token inspection", () => {
     '@styles/docs navbar, title, section',
     '@core/math as math',
     '@drawing.js draw,',
-    '@drawing.js as drawing',
+    '$export',
     'import = 1',
-    '@html/tables data, -- clause continues',
-    'row = build_row()',
-    '@core/math {sin, cos}',
     'logo #= @assets/logo.svg',
     'font #= @fonts/"Computer Modern.woff2"',
     'page = [@pages/home.mtf]',
     'root = @/',
-    '$code("moth")',
-    "items.length()",
-    "io.line(\"then\")",
+    '[codeblock, $code "moth":',
     "clip-path: circle(55%);",
-    "Write markdown and nested Moth templates directly in the `.mtf` file",
   ]) {
     assert.ok(mothFixture.includes(snippet), `expected .moth fixture to include '${snippet}'`);
   }
@@ -442,15 +383,24 @@ test("fixtures contain the cases needed for manual token inspection", () => {
     "[p:",
     "$raw:",
     "$escape_html:",
-    "$doc:",
-    "$todo:",
-    "$note:",
-    '$code("moth")',
+    "[$note:",
+    '[codeblock, $code "moth":',
     '["[literal]"]',
-    "@docs/pages/home render as render_home",
-    "@docs/pages/about content as about_content",
+    "@https://example.com (link)",
   ]) {
     assert.ok(mtfFixture.includes(snippet), `expected .mtf fixture to include '${snippet}'`);
+  }
+});
+
+test("negative fixtures clearly label deprecated forms", () => {
+  const moth = fs.readFileSync(invalidMothFixturePath, "utf8");
+  const mtf = fs.readFileSync(invalidMtfFixturePath, "utf8");
+  assert.match(moth, /Deprecated and invalid forms/);
+  for (const snippet of ["export:", '$code("moth")', "[$doc:", "[$todo:", "count Int", "#[p:"]) {
+    assert.ok(moth.includes(snippet), `negative .moth fixture is missing '${snippet}'`);
+  }
+  for (const snippet of ["[$doc:", "[$todo:", '$code("moth")', "[break]"]) {
+    assert.ok(mtf.includes(snippet), `negative .mtf fixture is missing '${snippet}'`);
   }
 });
 
@@ -459,9 +409,10 @@ test("migration support files contain no Beanstalk, BST, BD, or source.bd identi
     "package.json",
     "syntaxes/moth.tmLanguage.json",
     "syntaxes/mtf.tmLanguage.json",
-    "syntaxes/moth-comment-directives.tmLanguage.json",
     "tests/fixtures/highlighting-samples.moth",
     "tests/fixtures/highlighting-samples.mtf",
+    "tests/fixtures/invalid-syntax.moth",
+    "tests/fixtures/invalid-syntax.mtf",
   ];
 
   const forbidden = [

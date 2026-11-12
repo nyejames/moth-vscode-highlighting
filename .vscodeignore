@@ -1,0 +1,9 @@
+.vscode/**
+.gitignore
+old-versions/**
+tests/**
+tmp/**
+Moth_VSCode_Modernization_Implementation_Plan.md
+package-lock.json
+*.vsix
+node_modules/**
