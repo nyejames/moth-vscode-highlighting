@@ -2,7 +2,7 @@
   "name": "moth-highligher",
   "displayName": "Moth",
   "description": "Syntax highlighting for Moth",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "files": [
     "package.json",
     "syntaxes/moth.tmLanguage.json",
@@ -10,14 +10,17 @@
     "language-configuration.json",
     "mtf-language-configuration.json",
     "icons/moth-logo.png",
-    "icons/moth.png",
     "icons/moth-template-logo.png",
+    "icons/moth-blue.png",
+    "icons/moth-violet.png",
+    "icons/moth-green.png",
+    "fileicons/moth-icon-theme.json",
     "LICENSE",
     "docs/syntax-inventory.md"
   ],
   "publisher": "Nye",
   "license": "Apache-2.0",
-  "icon": "icons/moth.png",
+  "icon": "icons/moth-logo.png",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -98,6 +101,13 @@
           "meta.embedded.block.code.rs.moth": "rust",
           "meta.embedded.block.code.shell.moth": "shellscript"
         }
+      }
+    ],
+    "fileIconThemes": [
+      {
+        "id": "moth-file-icons",
+        "label": "Moth File Icons",
+        "path": "./fileicons/moth-icon-theme.json"
       }
     ]
   },

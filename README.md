@@ -41,9 +41,10 @@ In particular:
   does not associate.
 - A parent inline-code span that crosses a child template is rejected by the
   compiler; TextMate cannot detect that ordering.
-- File icons are registered per language. Exact-filename tints for
-  `@entry.moth`, `@mod.moth`, and `@package.moth` need an opt-in file-icon theme
-  and reviewed artwork, which is deferred to a separate design step.
+- File icons are registered per language. The optional **Moth File Icons**
+  theme adds exact-filename tints for `@entry.moth`, `@mod.moth`, and
+  `@package.moth`; unmatched files and folders use the default brown logo.
+  Select it with **Preferences: File Icon Theme**.
 
 ## Development
 

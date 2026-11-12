@@ -108,6 +108,45 @@ test("language configuration files exist and are included in the VSIX", () => {
   }
 });
 
+test("Moth file icon theme maps root roles and language fallbacks", () => {
+  const packagedFiles = new Set(pkg.files.map(normalizeContributionPath));
+  const contribution = pkg.contributes.fileIconThemes.find(
+    (entry) => entry.id === "moth-file-icons"
+  );
+  assert.ok(contribution, "expected the Moth file icon theme contribution");
+  assert.equal(contribution.label, "Moth File Icons");
+
+  const themePath = normalizeContributionPath(contribution.path);
+  const absoluteThemePath = path.join(rootDir, themePath);
+  assert.ok(fs.existsSync(absoluteThemePath), `missing '${themePath}'`);
+  assert.ok(packagedFiles.has(themePath), `'${themePath}' is missing from package.json files`);
+
+  const theme = JSON.parse(fs.readFileSync(absoluteThemePath, "utf8"));
+  const definitions = theme.iconDefinitions;
+  const resolveIcon = (id, label) => {
+    const definition = definitions[id];
+    assert.ok(definition, `missing icon definition '${id}' for ${label}`);
+    const iconPath = normalizeContributionPath(
+      path.normalize(path.join(path.dirname(themePath), definition.iconPath))
+    );
+    assert.ok(fs.existsSync(path.join(rootDir, iconPath)), `missing icon '${iconPath}'`);
+    assert.ok(packagedFiles.has(iconPath), `'${iconPath}' is missing from package.json files`);
+    return iconPath;
+  };
+
+  assert.equal(resolveIcon(theme.fileNames["@entry.moth"], "@entry.moth"), "icons/moth-blue.png");
+  assert.equal(resolveIcon(theme.fileNames["@package.moth"], "@package.moth"), "icons/moth-violet.png");
+  assert.equal(resolveIcon(theme.fileNames["@mod.moth"], "@mod.moth"), "icons/moth-green.png");
+  assert.equal(resolveIcon(theme.fileExtensions.moth, ".moth"), "icons/moth-logo.png");
+  assert.equal(resolveIcon(theme.fileExtensions.mtf, ".mtf"), "icons/moth-template-logo.png");
+  assert.equal(resolveIcon(theme.languageIds.moth, "moth language"), "icons/moth-logo.png");
+  assert.equal(resolveIcon(theme.languageIds.mtf, "mtf language"), "icons/moth-template-logo.png");
+  assert.equal(resolveIcon(theme.file, "default file"), "icons/moth-logo.png");
+  assert.equal(resolveIcon(theme.folder, "default folder"), "icons/moth-logo.png");
+  assert.equal(resolveIcon(theme.folderExpanded, "expanded folder"), "icons/moth-logo.png");
+  assert.equal(normalizeContributionPath(pkg.icon), "icons/moth-logo.png");
+});
+
 test("Moth source and Moth Template files use different comment behaviour", () => {
   assert.equal(mothConfig.comments.lineComment, "--");
   assert.ok(!Object.hasOwn(mtfConfig, "comments"), ".mtf must not register -- as a line comment");

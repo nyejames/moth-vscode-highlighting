@@ -82,7 +82,7 @@ Status labels:
 | Embedded JS/TS/Python/Rust/Shell/generic | active | `meta.embedded.block.code.<id>.moth` plus the delegated source grammar scope and `embeddedLanguages` mapping | Template directives |
 | Embedded CSS/HTML | active | Bounded fragments prevent `]`, quotes, `url(...)`, nested tags and attribute values from leaking into Moth | Template directives |
 | Root file roles | active | Only `@entry.moth`, `@mod.moth`, `@package.moth` are special authored roots; arbitrary `@*.moth` files are not roots | Module roots |
-| Root-role icons | unsettled | Exact-filename tint icons need an opt-in file-icon theme and reviewed artwork; no artwork is generated in this pass | Module roots, VS Code file-icon themes |
+| Root-role icons | active | Opt-in `Moth File Icons` theme maps `@entry.moth` to blue, `@mod.moth` to green, and `@package.moth` to violet; regular `.moth` / `.mtf` files keep their language icons | Module roots, VS Code file-icon themes |
 
 ## Retired forms
 
@@ -175,11 +175,11 @@ These forms must not receive current Moth scopes. Lexically detectable cases use
 7. **No semantic colouring.** There is no language server, semantic token
    provider, symbol resolution, or compiler diagnostic integration. Unknown
    names cannot be coloured by type or declaration role.
-8. **File icons are per language, not per filename.** VS Code's language icon
-   contribution cannot distinguish `@entry.moth`, `@mod.moth`, and
-   `@package.moth`. Exact-filename tints require a contributed file-icon theme
-   that the user opts into. That theme and its artwork are deferred to a
-   separately reviewed design step; current `.moth`/`.mtf` icons remain.
+8. **File icons use an opt-in theme for exact filenames.** VS Code's language
+   icon contribution cannot distinguish `@entry.moth`, `@mod.moth`, and
+   `@package.moth`, so `Moth File Icons` adds exact-filename mappings on top of
+   the regular `.moth` / `.mtf` icons. The language icon contributions remain
+   the fallback until the user selects the file icon theme.
 
 ## VS Code integration decisions
 
@@ -193,6 +193,11 @@ These forms must not receive current Moth scopes. Lexically detectable cases use
   semantic. Bracket-based folding remains the editor default.
 - `@entry.moth`, `@mod.moth`, and `@package.moth` are the only special authored
   root filenames. `config.moth` branding is a separate, undecided design step.
+- `fileicons/moth-icon-theme.json` contributes `Moth File Icons`. It maps exact
+  root filenames to the blue, green, and violet artwork, while `.moth` and
+  `.mtf` fall back to their existing language icons. Unmatched files and folders
+  use the brown `icons/moth-logo.png` fallback. Selecting a file icon theme is
+  an editor preference, so the theme is opt-in.
 - The package identifier `moth-highligher` and publisher `Nye` are retained for
   upgrade compatibility. The typo is not changed in this pass.
 

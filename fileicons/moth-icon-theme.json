@@ -1,0 +1,35 @@
+{
+  "iconDefinitions": {
+    "_moth": {
+      "iconPath": "../icons/moth-logo.png"
+    },
+    "_moth_template": {
+      "iconPath": "../icons/moth-template-logo.png"
+    },
+    "_moth_entry": {
+      "iconPath": "../icons/moth-blue.png"
+    },
+    "_moth_mod": {
+      "iconPath": "../icons/moth-green.png"
+    },
+    "_moth_package": {
+      "iconPath": "../icons/moth-violet.png"
+    }
+  },
+  "file": "_moth",
+  "folder": "_moth",
+  "folderExpanded": "_moth",
+  "fileNames": {
+    "@entry.moth": "_moth_entry",
+    "@mod.moth": "_moth_mod",
+    "@package.moth": "_moth_package"
+  },
+  "fileExtensions": {
+    "moth": "_moth",
+    "mtf": "_moth_template"
+  },
+  "languageIds": {
+    "moth": "_moth",
+    "mtf": "_moth_template"
+  }
+}
